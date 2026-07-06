@@ -1,67 +1,43 @@
 package com.vaultpass.desktop.ui.viewmodels
 
-import com.vaultpass.desktop.domain.AuthRepository
+import com.vaultpass.desktop.domain.session.SessionManagerImpl
+import com.vaultpass.desktop.domain.session.SessionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-enum class AuthState {
-    LOADING,
-    FIRST_LAUNCH,
-    LOCKED,
-    UNLOCKED
-}
-
 /**
- * Manages the application's authentication state flow.
+ * Manages the application's authentication flow, delegating state to the SessionManager.
  */
 class AuthViewModel(
-    private val authRepository: AuthRepository,
+    private val sessionManager: com.vaultpass.desktop.domain.session.SessionManager,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
 ) {
-    private val _authState = MutableStateFlow(AuthState.LOADING)
-    val authState: StateFlow<AuthState> = _authState.asStateFlow()
+    val sessionState: StateFlow<SessionState> = sessionManager.sessionState
 
     init {
-        checkVaultStatus()
-    }
-
-    private fun checkVaultStatus() {
         scope.launch {
-            _authState.value = AuthState.LOADING
-            if (authRepository.hasVault()) {
-                _authState.value = AuthState.LOCKED
-            } else {
-                _authState.value = AuthState.FIRST_LAUNCH
-            }
+            sessionManager.initialize()
         }
     }
 
-    fun createMasterPassword(password: String, onResult: (Boolean) -> Unit) {
+    fun createMasterPassword(password: String, onResult: (Boolean, String?) -> Unit) {
         scope.launch {
-            val success = authRepository.createMasterPassword(password)
-            if (success) {
-                _authState.value = AuthState.UNLOCKED
-            }
-            onResult(success)
+            val success = sessionManager.vaultCreated(password)
+            onResult(success, null)
         }
     }
 
-    fun verifyMasterPassword(password: String, onResult: (Boolean) -> Unit) {
+    fun verifyMasterPassword(password: String, onResult: (Boolean, String?) -> Unit) {
         scope.launch {
-            val success = authRepository.verifyMasterPassword(password)
-            if (success) {
-                _authState.value = AuthState.UNLOCKED
-            }
-            onResult(success)
+            // Milestone 2.2: Do not verify passwords. Just unlock.
+            val success = sessionManager.unlock(password)
+            onResult(success, null)
         }
     }
 
     fun lock() {
-        authRepository.lock()
-        _authState.value = AuthState.LOCKED
+        sessionManager.lock()
     }
 }

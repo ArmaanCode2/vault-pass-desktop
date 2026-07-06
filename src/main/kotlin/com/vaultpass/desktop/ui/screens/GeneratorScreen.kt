@@ -9,13 +9,53 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.random.Random
 
 @Composable
 fun GeneratorScreen() {
+    var length by remember { mutableFloatStateOf(16f) }
+    var includeUppercase by remember { mutableStateOf(true) }
+    var includeLowercase by remember { mutableStateOf(true) }
+    var includeNumbers by remember { mutableStateOf(true) }
+    var includeSymbols by remember { mutableStateOf(true) }
+    var currentPassword by remember { mutableStateOf("") }
+    val clipboardManager = LocalClipboardManager.current
+
+    // Helper to generate a placeholder password
+    val generatePlaceholder = {
+        val uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        val lowercase = "abcdefghijklmnopqrstuvwxyz"
+        val numbers = "0123456789"
+        val symbols = "!@#$%^&*()_+-=[]{}|;':\",./<>?"
+
+        var pool = ""
+        if (includeUppercase) pool += uppercase
+        if (includeLowercase) pool += lowercase
+        if (includeNumbers) pool += numbers
+        if (includeSymbols) pool += symbols
+
+        if (pool.isEmpty()) {
+            currentPassword = ""
+        } else {
+            val sb = java.lang.StringBuilder()
+            for (i in 0 until length.toInt()) {
+                sb.append(pool[Random.nextInt(pool.length)])
+            }
+            currentPassword = sb.toString()
+        }
+    }
+
+    // Generate initially and whenever options change
+    LaunchedEffect(length, includeUppercase, includeLowercase, includeNumbers, includeSymbols) {
+        generatePlaceholder()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -49,7 +89,7 @@ fun GeneratorScreen() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "X7k!m9Q@pL2v#sY5",
+                    text = currentPassword,
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         letterSpacing = 2.sp
@@ -57,11 +97,13 @@ fun GeneratorScreen() {
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = { /* TODO */ }) {
+                IconButton(onClick = { generatePlaceholder() }) {
                     Icon(Icons.Default.Refresh, contentDescription = "Regenerate")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Button(onClick = { /* TODO */ }) {
+                Button(onClick = { 
+                    clipboardManager.setText(AnnotatedString(currentPassword))
+                }) {
                     Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Copy")
@@ -95,15 +137,15 @@ fun GeneratorScreen() {
                         modifier = Modifier.width(100.dp)
                     )
                     Slider(
-                        value = 16f,
-                        onValueChange = { },
+                        value = length,
+                        onValueChange = { length = it },
                         valueRange = 8f..64f,
-                        steps = 56,
+                        steps = 55, // 55 steps between 8 and 64 gives step size 1
                         modifier = Modifier.weight(1f)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = "16",
+                        text = length.toInt().toString(),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.width(40.dp)
@@ -115,17 +157,17 @@ fun GeneratorScreen() {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Character types
-                GeneratorOptionRow("Uppercase Letters (A-Z)", true)
-                GeneratorOptionRow("Lowercase Letters (a-z)", true)
-                GeneratorOptionRow("Numbers (0-9)", true)
-                GeneratorOptionRow("Symbols (!@#$%)", true)
+                GeneratorOptionRow("Uppercase Letters (A-Z)", includeUppercase) { includeUppercase = it }
+                GeneratorOptionRow("Lowercase Letters (a-z)", includeLowercase) { includeLowercase = it }
+                GeneratorOptionRow("Numbers (0-9)", includeNumbers) { includeNumbers = it }
+                GeneratorOptionRow("Symbols (!@#\$%)", includeSymbols) { includeSymbols = it }
             }
         }
     }
 }
 
 @Composable
-private fun GeneratorOptionRow(label: String, checked: Boolean) {
+private fun GeneratorOptionRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -134,7 +176,7 @@ private fun GeneratorOptionRow(label: String, checked: Boolean) {
     ) {
         Checkbox(
             checked = checked,
-            onCheckedChange = { }
+            onCheckedChange = onCheckedChange
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(

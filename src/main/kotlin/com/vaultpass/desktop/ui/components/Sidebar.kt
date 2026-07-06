@@ -32,6 +32,7 @@ import com.vaultpass.desktop.ui.navigation.Screen
 fun Sidebar(
     navigationState: NavigationState,
     isCollapsed: Boolean,
+    onLock: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val sidebarWidth by animateDpAsState(
@@ -123,7 +124,7 @@ fun Sidebar(
             label = "Lock Vault",
             isSelected = false,
             isCollapsed = isCollapsed,
-            onClick = { navigationState.navigateTo(Screen.Lock) }
+            onClick = onLock
         )
     }
 }

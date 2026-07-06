@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun LockScreen(
-    onUnlock: (String, (Boolean) -> Unit) -> Unit
+    onUnlock: (String, (Boolean, String?) -> Unit) -> Unit
 ) {
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
@@ -40,10 +40,10 @@ fun LockScreen(
         if (password.isNotBlank()) {
             isLoading = true
             errorMessage = null
-            onUnlock(password) { success ->
+            onUnlock(password) { success, errorMsg ->
                 isLoading = false
                 if (!success) {
-                    errorMessage = "Incorrect Master Password."
+                    errorMessage = errorMsg ?: "Incorrect Master Password."
                 }
             }
         } else {

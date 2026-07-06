@@ -25,7 +25,7 @@ import com.vaultpass.desktop.ui.theme.VaultPassTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.material3.CircularProgressIndicator
-import com.vaultpass.desktop.ui.viewmodels.AuthState
+import com.vaultpass.desktop.domain.session.SessionState
 
 fun main() = application {
     // Window sizing rules from DESKTOP_UI_GUIDELINES.md
@@ -42,9 +42,16 @@ fun main() = application {
         window.minimumSize = java.awt.Dimension(800, 600)
         
         VaultPassTheme {
-            val authRepository = remember { com.vaultpass.desktop.data.AuthRepositoryImpl() }
-            val authViewModel = remember { com.vaultpass.desktop.ui.viewmodels.AuthViewModel(authRepository) }
-            val authState by authViewModel.authState.collectAsState()
+            val metadataRepository = remember { com.vaultpass.desktop.data.MetadataRepositoryImpl() }
+            val passwordVerifier = remember { com.vaultpass.desktop.data.TempPasswordVerifier() }
+            val authenticationRepository = remember { com.vaultpass.desktop.data.TempAuthenticationRepository(passwordVerifier) }
+            val migrationRegistry = remember { com.vaultpass.desktop.domain.migration.MigrationRegistry() }
+            val migrationRunner = remember { com.vaultpass.desktop.domain.migration.MigrationRunner(migrationRegistry) }
+            val sessionManager = remember<com.vaultpass.desktop.domain.session.SessionManager> { 
+                com.vaultpass.desktop.domain.session.SessionManagerImpl(metadataRepository, authenticationRepository, migrationRunner) 
+            }
+            val authViewModel = remember { com.vaultpass.desktop.ui.viewmodels.AuthViewModel(sessionManager) }
+            val sessionState by authViewModel.sessionState.collectAsState()
 
             val navigationState = remember { NavigationState(Screen.Dashboard) }
             
@@ -55,27 +62,28 @@ fun main() = application {
             ) {
                 val isCompact = maxWidth < 850.dp
                 
-                when (authState) {
-                    AuthState.LOADING -> {
+                when (sessionState) {
+                    SessionState.Unlocking -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
                             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     }
-                    AuthState.FIRST_LAUNCH -> {
+                    SessionState.FirstLaunch, SessionState.SetupMasterPassword -> {
                         com.vaultpass.desktop.ui.screens.SetupScreen(
                             onCreateVault = authViewModel::createMasterPassword
                         )
                     }
-                    AuthState.LOCKED -> {
+                    SessionState.Locked -> {
                         com.vaultpass.desktop.ui.screens.LockScreen(
                             onUnlock = authViewModel::verifyMasterPassword
                         )
                     }
-                    AuthState.UNLOCKED -> {
+                    SessionState.Unlocked -> {
                         Row(modifier = Modifier.fillMaxSize()) {
                             Sidebar(
                                 navigationState = navigationState,
-                                isCollapsed = isCompact
+                                isCollapsed = isCompact,
+                                onLock = authViewModel::lock
                             )
                             
                             Column(modifier = Modifier.weight(1f).fillMaxSize()) {

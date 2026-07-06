@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun SetupScreen(
-    onCreateVault: (String, (Boolean) -> Unit) -> Unit
+    onCreateVault: (String, (Boolean, String?) -> Unit) -> Unit
 ) {
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -51,10 +51,10 @@ fun SetupScreen(
             errorMessage = "Master Password must be at least 8 characters long."
         } else {
             isLoading = true
-            onCreateVault(password) { success ->
+            onCreateVault(password) { success, errorMsg ->
                 isLoading = false
                 if (!success) {
-                    errorMessage = "Failed to create vault."
+                    errorMessage = errorMsg ?: "Failed to create vault."
                 }
             }
         }
@@ -118,7 +118,54 @@ fun SetupScreen(
                     }
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                // Password Strength Indicator
+                val strengthScore = remember(password) {
+                    var score = 0
+                    if (password.length >= 8) score++
+                    if (password.length >= 12) score++
+                    if (password.any { it.isUpperCase() }) score++
+                    if (password.any { it.isLowerCase() }) score++
+                    if (password.any { !it.isLetterOrDigit() }) score++
+                    score
+                }
+                
+                val strengthColor = when (strengthScore) {
+                    0, 1 -> MaterialTheme.colorScheme.error
+                    2, 3 -> androidx.compose.ui.graphics.Color(0xFFFFA000) // Orange
+                    else -> androidx.compose.ui.graphics.Color(0xFF4CAF50) // Green
+                }
+                val strengthText = when (strengthScore) {
+                    0, 1 -> "Weak"
+                    2, 3 -> "Fair"
+                    4, 5 -> "Strong"
+                    else -> ""
+                }
+
+                if (password.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LinearProgressIndicator(
+                            progress = (strengthScore / 5f).coerceIn(0f, 1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(4.dp),
+                            color = strengthColor,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = strengthText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = strengthColor
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
                 // Confirm Password Field
                 OutlinedTextField(
@@ -142,7 +189,13 @@ fun SetupScreen(
                     isError = errorMessage != null,
                     visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { submitAction() })
+                    keyboardActions = KeyboardActions(onDone = { submitAction() }),
+                    trailingIcon = {
+                        val image = if (isPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                            Icon(imageVector = image, contentDescription = "Toggle password visibility")
+                        }
+                    }
                 )
 
                 AnimatedVisibility(

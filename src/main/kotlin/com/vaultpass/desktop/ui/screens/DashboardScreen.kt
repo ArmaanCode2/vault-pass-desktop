@@ -152,12 +152,14 @@ private fun MetricCard(title: String, count: String, description: String, icon: 
 @Composable
 private fun ActivityCard() {
     DashboardCard {
-        Text(text = "Recent Activity", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
-        Spacer(modifier = Modifier.height(16.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            ActivityRow("Google Account", "Password updated", "2 hrs ago", Icons.Default.Update)
-            ActivityRow("Netflix", "Added to vault", "1 day ago", Icons.Default.Add)
-            ActivityRow("Old Bank", "Moved to Recycle Bin", "3 days ago", Icons.Default.Delete)
+        Column {
+            Text(text = "Recent Activity", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(modifier = Modifier.height(16.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ActivityRow("Google Account", "Password updated", "2 hrs ago", Icons.Default.Update)
+                ActivityRow("Netflix", "Added to vault", "1 day ago", Icons.Default.Add)
+                ActivityRow("Old Bank", "Moved to Recycle Bin", "3 days ago", Icons.Default.Delete)
+            }
         }
     }
 }
@@ -192,23 +194,25 @@ private fun ActivityRow(title: String, action: String, time: String, icon: Image
 @Composable
 private fun QuickActionsCard() {
     DashboardCard {
-        Text(text = "Quick Actions", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
-        Spacer(modifier = Modifier.height(16.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = { }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Add Password")
-            }
-            OutlinedButton(onClick = { }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.VpnKey, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Generate Password")
-            }
-            OutlinedButton(onClick = { }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Security, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Review Security")
+        Column {
+            Text(text = "Quick Actions", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(modifier = Modifier.height(16.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = { }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Add Password")
+                }
+                OutlinedButton(onClick = { }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.VpnKey, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Generate Password")
+                }
+                OutlinedButton(onClick = { }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Security, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Review Security")
+                }
             }
         }
     }
