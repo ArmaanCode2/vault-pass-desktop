@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,10 +16,14 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vaultpass.desktop.ui.viewmodels.VaultViewModel
 import kotlin.random.Random
 
 @Composable
-fun GeneratorScreen() {
+fun GeneratorScreen(
+    vaultViewModel: VaultViewModel,
+    onNavigateToVault: () -> Unit
+) {
     var length by remember { mutableFloatStateOf(16f) }
     var includeUppercase by remember { mutableStateOf(true) }
     var includeLowercase by remember { mutableStateOf(true) }
@@ -27,8 +32,7 @@ fun GeneratorScreen() {
     var currentPassword by remember { mutableStateOf("") }
     val clipboardManager = LocalClipboardManager.current
 
-    // Helper to generate a placeholder password
-    val generatePlaceholder = {
+    val generatePassword = {
         val uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         val lowercase = "abcdefghijklmnopqrstuvwxyz"
         val numbers = "0123456789"
@@ -51,9 +55,8 @@ fun GeneratorScreen() {
         }
     }
 
-    // Generate initially and whenever options change
     LaunchedEffect(length, includeUppercase, includeLowercase, includeNumbers, includeSymbols) {
-        generatePlaceholder()
+        generatePassword()
     }
 
     Column(
@@ -82,32 +85,45 @@ fun GeneratorScreen() {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             shape = MaterialTheme.shapes.medium
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = currentPassword,
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 2.sp
-                    ),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = { generatePlaceholder() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Regenerate")
+            Column(modifier = Modifier.padding(24.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = currentPassword,
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 2.sp
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = { generatePassword() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Regenerate")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(onClick = { 
+                        clipboardManager.setText(AnnotatedString(currentPassword))
+                    }) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Copy")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(onClick = { 
+                        vaultViewModel.setPendingGeneratedPassword(currentPassword)
+                        vaultViewModel.showAddDialog(true)
+                        onNavigateToVault()
+                    }) {
+                        Icon(Icons.Default.Done, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Use Password")
+                    }
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(onClick = { 
-                    clipboardManager.setText(AnnotatedString(currentPassword))
-                }) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Copy")
-                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                PasswordStrengthIndicator(currentPassword)
             }
         }
 
@@ -140,7 +156,7 @@ fun GeneratorScreen() {
                         value = length,
                         onValueChange = { length = it },
                         valueRange = 8f..64f,
-                        steps = 55, // 55 steps between 8 and 64 gives step size 1
+                        steps = 55,
                         modifier = Modifier.weight(1f)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
@@ -167,6 +183,38 @@ fun GeneratorScreen() {
 }
 
 @Composable
+fun PasswordStrengthIndicator(password: String) {
+    val strength = calculatePasswordScore(password)
+
+    val color = when (strength) {
+        0 -> MaterialTheme.colorScheme.error
+        1 -> androidx.compose.ui.graphics.Color(0xFFE6C129) // Yellow
+        else -> androidx.compose.ui.graphics.Color(0xFF4CAF50) // Green
+    }
+    
+    val text = when (strength) {
+        0 -> "Weak"
+        1 -> "Medium"
+        else -> "Strong"
+    }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        LinearProgressIndicator(
+            progress = when (strength) {
+                0 -> 0.33f
+                1 -> 0.66f
+                else -> 1.0f
+            },
+            color = color,
+            modifier = Modifier.weight(1f).height(8.dp),
+            trackColor = MaterialTheme.colorScheme.surface
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(text, color = color, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
 private fun GeneratorOptionRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier
@@ -184,5 +232,65 @@ private fun GeneratorOptionRow(label: String, checked: Boolean, onCheckedChange:
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface
         )
+    }
+}
+
+private fun calculatePasswordScore(password: String): Int {
+    if (password.isEmpty()) return 0
+    
+    var score = 0.0
+    val length = password.length
+
+    // 1. Character Diversity (Pool Size)
+    var poolSize = 0
+    if (password.any { it.isLowerCase() }) poolSize += 26
+    if (password.any { it.isUpperCase() }) poolSize += 26
+    if (password.any { it.isDigit() }) poolSize += 10
+    if (password.any { !it.isLetterOrDigit() }) poolSize += 32
+
+    // 2. Entropy
+    // log2(poolSize) * length
+    val entropy = if (poolSize > 0) length * (Math.log(poolSize.toDouble()) / Math.log(2.0)) else 0.0
+    score += entropy
+
+    // 3. Length Bonuses
+    if (length >= 16) score += 10.0
+    if (length >= 24) score += 15.0
+
+    // 4. Deductions for Repeated Patterns
+    var consecutiveCount = 0
+    for (i in 0 until length - 1) {
+        if (password[i] == password[i+1]) {
+            consecutiveCount++
+        }
+    }
+    score -= (consecutiveCount * 5.0)
+
+    // Subtract points for common sequences/dictionary words
+    val lowerPass = password.lowercase()
+    val dictionaryWords = listOf("password", "qwerty", "12345", "admin", "welcome", "letmein", "123123")
+    for (word in dictionaryWords) {
+        if (lowerPass.contains(word)) {
+            score -= 30.0
+        }
+    }
+
+    // Subtract points for sequential characters (abc, 123)
+    var sequentialCount = 0
+    for (i in 0 until length - 2) {
+        val c1 = password[i].code
+        val c2 = password[i+1].code
+        val c3 = password[i+2].code
+        if ((c1 + 1 == c2 && c2 + 1 == c3) || (c1 - 1 == c2 && c2 - 1 == c3)) {
+            sequentialCount++
+        }
+    }
+    score -= (sequentialCount * 15.0)
+
+    // Normalize final output
+    return when {
+        score < 40.0 -> 0     // Weak
+        score < 75.0 -> 1     // Medium
+        else -> 2             // Strong
     }
 }

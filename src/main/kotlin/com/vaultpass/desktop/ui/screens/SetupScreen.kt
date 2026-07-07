@@ -177,6 +177,7 @@ fun SetupScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .onKeyEvent { event ->
+                            if (isLoading) return@onKeyEvent true
                             if (event.type == KeyEventType.KeyUp && event.key == Key.Enter) {
                                 submitAction()
                                 true

@@ -1,6 +1,7 @@
 package com.vaultpass.desktop.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -13,7 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun TopBar(modifier: Modifier = Modifier) {
+fun TopBar(
+    modifier: Modifier = Modifier,
+    onAddClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {},
+    onShowSnackbar: (String) -> Unit = {}
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -29,6 +35,7 @@ fun TopBar(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .weight(1f)
                 .height(36.dp)
+                .clickable { onSearchClick() }
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -52,7 +59,7 @@ fun TopBar(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.width(16.dp))
 
         // Actions
-        IconButton(onClick = { /* TODO */ }) {
+        IconButton(onClick = { onShowSnackbar("VaultPass is completely offline and secure.") }) {
             Icon(
                 imageVector = Icons.Default.CloudOff,
                 contentDescription = "Offline Mode",
@@ -60,7 +67,7 @@ fun TopBar(modifier: Modifier = Modifier) {
             )
         }
         
-        IconButton(onClick = { /* TODO */ }) {
+        IconButton(onClick = onAddClick) {
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = "Add Entry",

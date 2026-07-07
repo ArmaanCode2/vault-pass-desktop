@@ -29,6 +29,7 @@ fun LockScreen(
     var isPasswordVisible by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showForgotDialog by remember { mutableStateOf(false) }
 
     val focusRequester = remember { FocusRequester() }
 
@@ -158,13 +159,28 @@ fun LockScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Footer text
-                Text(
-                    text = "Privacy Policy",
-                    style = MaterialTheme.typography.bodySmall.copy(textDecoration = TextDecoration.Underline),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable { /* TODO: Open URL */ }
-                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    Text(
+                        text = "Forgot Password?",
+                        style = MaterialTheme.typography.bodySmall.copy(textDecoration = TextDecoration.Underline),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { showForgotDialog = true }
+                    )
+                }
             }
+        }
+
+        if (showForgotDialog) {
+            AlertDialog(
+                onDismissRequest = { showForgotDialog = false },
+                title = { Text("Unrecoverable Vault") },
+                text = { Text("VaultPass is an offline-first application. If you lose your Master Password, your data is cryptographically unrecoverable.") },
+                confirmButton = {
+                    TextButton(onClick = { showForgotDialog = false }) {
+                        Text("I understand")
+                    }
+                }
+            )
         }
     }
 }

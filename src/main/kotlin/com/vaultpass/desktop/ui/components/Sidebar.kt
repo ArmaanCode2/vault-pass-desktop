@@ -96,22 +96,9 @@ fun Sidebar(
             onClick = { navigationState.navigateTo(Screen.Generator) }
         )
 
+
         Spacer(modifier = Modifier.weight(1f))
 
-        SidebarItem(
-            icon = Icons.Default.Delete,
-            label = "Recycle Bin",
-            isSelected = navigationState.currentScreen == Screen.RecycleBin,
-            isCollapsed = isCollapsed,
-            onClick = { navigationState.navigateTo(Screen.RecycleBin) }
-        )
-        SidebarItem(
-            icon = Icons.Default.Info,
-            label = "About",
-            isSelected = navigationState.currentScreen == Screen.About,
-            isCollapsed = isCollapsed,
-            onClick = { navigationState.navigateTo(Screen.About) }
-        )
         SidebarItem(
             icon = Icons.Default.Settings,
             label = "Settings",

@@ -6,7 +6,5 @@ enum class Screen {
     SecurityCenter,
     Generator,
     Settings,
-    RecycleBin,
-    About,
     Lock
 }

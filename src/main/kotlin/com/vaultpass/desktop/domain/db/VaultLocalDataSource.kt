@@ -1,6 +1,6 @@
 package com.vaultpass.desktop.domain.db
 
-import com.vaultpass.desktop.domain.models.VaultEntry
+import com.vaultpass.desktop.data.models.VaultEntity
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -8,9 +8,9 @@ import kotlinx.coroutines.flow.Flow
  * Abstracted to decouple the Repository layer from the actual SQL engine (Room/SQLDelight).
  */
 interface VaultLocalDataSource {
-    fun observeAll(): Flow<List<VaultEntry>>
-    suspend fun getById(id: String): VaultEntry?
-    suspend fun insert(entry: VaultEntry)
-    suspend fun update(entry: VaultEntry)
+    fun observeAll(): Flow<List<VaultEntity>>
+    suspend fun getById(id: String): VaultEntity?
+    suspend fun insert(entity: VaultEntity)
+    suspend fun update(entity: VaultEntity)
     suspend fun delete(id: String)
 }

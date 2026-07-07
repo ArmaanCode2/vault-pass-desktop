@@ -1,6 +1,8 @@
 package com.vaultpass.desktop.ui.screens
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -10,19 +12,60 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.vaultpass.desktop.domain.models.VaultEntry
+import com.vaultpass.desktop.ui.viewmodels.AuthViewModel
+import com.vaultpass.desktop.ui.viewmodels.VaultViewModel
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
-fun DashboardScreen() {
+fun DashboardScreen(vaultViewModel: VaultViewModel, authViewModel: AuthViewModel, onNavigateToGenerator: () -> Unit) {
+    val vaultState by vaultViewModel.uiState.collectAsState()
+    val lastOpenedAt by authViewModel.lastOpenedAt.collectAsState()
+    
+    val entries = vaultState.entries
+    val totalPasswords = entries.size
+    val weakPasswords = entries.count { it.secret.length < 8 }
+    val reusedPasswords = entries.groupBy { it.secret }.count { it.value.size > 1 }
+    
+    val securityScore = if (totalPasswords == 0) 100 else {
+        val weakPenalty = weakPasswords * 10
+        val reusedPenalty = reusedPasswords * 15
+        val score = 100 - weakPenalty - reusedPenalty
+        score.coerceIn(0, 100)
+    }
+    
+    val scoreColor = when {
+        securityScore >= 90 -> MaterialTheme.colorScheme.primary
+        securityScore >= 70 -> MaterialTheme.colorScheme.secondary
+        else -> MaterialTheme.colorScheme.error
+    }
+    
+    val scoreDescription = when {
+        securityScore >= 90 -> "Your vault is in great shape."
+        securityScore >= 70 -> "Consider updating weak passwords."
+        else -> "Action required to secure vault."
+    }
+
+    val favorites = entries.filter { it.isFavorite }.take(6)
+    val recentActivity = entries.sortedByDescending { it.updatedAt }.take(3)
+
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+    val lastUnlockTime = if (lastOpenedAt > 0) dateFormat.format(Date(lastOpenedAt)) else "First Launch"
+
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 320.dp),
         contentPadding = PaddingValues(24.dp),
@@ -31,22 +74,32 @@ fun DashboardScreen() {
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Text(
-                text = "Dashboard Overview",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Text(
+                    text = "Dashboard Overview",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "Last Unlock: $lastUnlockTime",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         // Vault Statistics / Security Score
         item {
             ScoreCard(
                 title = "Security Score",
-                score = "94%",
-                description = "Your vault is in great shape.",
-                icon = Icons.Default.Shield,
-                color = MaterialTheme.colorScheme.primary
+                score = "$securityScore%",
+                description = scoreDescription,
+                icon = if (securityScore >= 90) Icons.Default.Shield else Icons.Default.Warning,
+                color = scoreColor
             )
         }
 
@@ -54,19 +107,19 @@ fun DashboardScreen() {
         item {
             MetricCard(
                 title = "Weak Passwords",
-                count = "2",
-                description = "Needs attention",
-                icon = Icons.Default.Warning,
-                color = MaterialTheme.colorScheme.error
+                count = "$weakPasswords",
+                description = if (weakPasswords == 0) "Excellent" else "Needs attention",
+                icon = if (weakPasswords == 0) Icons.Default.CheckCircle else Icons.Default.Warning,
+                color = if (weakPasswords == 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
             )
         }
         item {
             MetricCard(
-                title = "Reused Passwords",
-                count = "0",
-                description = "Excellent",
-                icon = Icons.Default.CheckCircle,
-                color = MaterialTheme.colorScheme.secondary
+                title = "Total Passwords",
+                count = "$totalPasswords",
+                description = "Secured in Vault",
+                icon = Icons.Default.Lock,
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -76,29 +129,37 @@ fun DashboardScreen() {
 
         // Recent Activity
         item {
-            ActivityCard()
+            ActivityCard(recentActivity)
         }
 
         // Quick Actions
         item {
-            QuickActionsCard()
+            QuickActionsCard(
+                onAddPassword = { vaultViewModel.showAddDialog(true) },
+                onNavigateToGenerator = onNavigateToGenerator
+            )
         }
 
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Column {
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "Favorites",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(bottom = 8.dp)
+        if (favorites.isNotEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Column {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "Favorites",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+            }
+
+            // Favorites Grid Items
+            items(favorites) { entry ->
+                FavoriteItemCard(
+                    entry = entry,
+                    vaultViewModel = vaultViewModel
                 )
             }
-        }
-
-        // Favorites Grid Items
-        items(6) { index ->
-            FavoriteItemCard(index = index)
         }
     }
 }
@@ -150,15 +211,25 @@ private fun MetricCard(title: String, count: String, description: String, icon: 
 }
 
 @Composable
-private fun ActivityCard() {
+private fun ActivityCard(recentActivity: List<VaultEntry>) {
     DashboardCard {
         Column {
             Text(text = "Recent Activity", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(16.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                ActivityRow("Google Account", "Password updated", "2 hrs ago", Icons.Default.Update)
-                ActivityRow("Netflix", "Added to vault", "1 day ago", Icons.Default.Add)
-                ActivityRow("Old Bank", "Moved to Recycle Bin", "3 days ago", Icons.Default.Delete)
+            
+            if (recentActivity.isEmpty()) {
+                Text("No recent activity.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    val dateFormat = SimpleDateFormat("MMM dd", Locale.getDefault())
+                    recentActivity.forEach { entry ->
+                        val displayTitle = if (entry.title.isBlank()) "Untitled" else entry.title
+                        val action = if (entry.createdAt == entry.updatedAt) "Added to vault" else "Updated password"
+                        val icon = if (entry.createdAt == entry.updatedAt) Icons.Default.Add else Icons.Default.Update
+                        val timeString = dateFormat.format(Date(entry.updatedAt))
+                        ActivityRow(displayTitle, action, timeString, icon)
+                    }
+                }
             }
         }
     }
@@ -176,14 +247,14 @@ private fun ActivityRow(title: String, action: String, time: String, icon: Image
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = action,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis
             )
         }
         Spacer(modifier = Modifier.width(8.dp))
@@ -192,26 +263,24 @@ private fun ActivityRow(title: String, action: String, time: String, icon: Image
 }
 
 @Composable
-private fun QuickActionsCard() {
+private fun QuickActionsCard(
+    onAddPassword: () -> Unit,
+    onNavigateToGenerator: () -> Unit
+) {
     DashboardCard {
         Column {
             Text(text = "Quick Actions", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(16.dp))
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = { }, modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = onAddPassword, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Add Password")
                 }
-                OutlinedButton(onClick = { }, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = onNavigateToGenerator, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.VpnKey, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Generate Password")
-                }
-                OutlinedButton(onClick = { }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.Security, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Review Security")
                 }
             }
         }
@@ -220,16 +289,16 @@ private fun QuickActionsCard() {
 
 @Composable
 private fun DashboardCard(content: @Composable () -> Unit) {
-    val interactionSource = androidx.compose.runtime.remember { MutableInteractionSource() }
+    val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
     
-    val elevation = androidx.compose.animation.core.animateDpAsState(if (isHovered) 4.dp else 1.dp)
+    val elevation by animateDpAsState(if (isHovered) 4.dp else 1.dp)
 
     Surface(
         modifier = Modifier.fillMaxWidth().hoverable(interactionSource),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = elevation.value,
+        tonalElevation = elevation,
         shadowElevation = if (isHovered) 2.dp else 0.dp
     ) {
         Box(modifier = Modifier.padding(20.dp)) {
@@ -239,19 +308,20 @@ private fun DashboardCard(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun FavoriteItemCard(index: Int) {
-    val items = listOf("GitHub", "AWS Console", "ProtonMail", "Slack", "Bank of America", "Twitter")
-    val title = items.getOrNull(index) ?: "Service $index"
+private fun FavoriteItemCard(entry: VaultEntry, vaultViewModel: VaultViewModel) {
+    val displayTitle = if (entry.title.isBlank()) "Untitled" else entry.title
+    val clipboardManager = LocalClipboardManager.current
+    val coroutineScope = rememberCoroutineScope()
     
-    val interactionSource = androidx.compose.runtime.remember { MutableInteractionSource() }
+    val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
     val backgroundColor = if (isHovered) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant
-    val elevation = androidx.compose.animation.core.animateDpAsState(if (isHovered) 2.dp else 0.dp)
+    val elevation by animateDpAsState(if (isHovered) 2.dp else 0.dp)
 
     Card(
-        modifier = Modifier.fillMaxWidth().hoverable(interactionSource),
+        modifier = Modifier.fillMaxWidth().hoverable(interactionSource).clickable { vaultViewModel.showEditDialog(entry.id) },
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = elevation.value),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
         shape = MaterialTheme.shapes.small
     ) {
         Row(
@@ -265,29 +335,33 @@ private fun FavoriteItemCard(index: Int) {
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = title.take(1), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(text = displayTitle.take(1).uppercase(), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = title,
+                    text = displayTitle,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = "jane.doe@example.com",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
+                if (entry.username.isNotBlank()) {
+                    Text(
+                        text = entry.username,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(8.dp))
             IconButton(
-                onClick = { },
+                onClick = { 
+                    vaultViewModel.copyPasswordToClipboard(entry.secret, clipboardManager)
+                },
                 modifier = Modifier.alpha(if (isHovered) 1f else 0f)
             ) {
                 Icon(Icons.Default.ContentCopy, contentDescription = "Copy Password", tint = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -4,6 +4,9 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,129 +20,195 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-
-data class MockVaultEntry(
-    val id: String,
-    val title: String,
-    val username: String,
-    val website: String,
-    val notes: String
-)
-
-private val MOCK_ENTRIES = listOf(
-    MockVaultEntry("1", "Google Account", "user@gmail.com", "https://google.com", "Main personal account"),
-    MockVaultEntry("2", "GitHub", "dev-user", "https://github.com", "Work repositories"),
-    MockVaultEntry("3", "Bank of America", "jane.doe", "https://bankofamerica.com", "Checking and savings"),
-    MockVaultEntry("4", "Twitter", "@jane_doe", "https://twitter.com", ""),
-    MockVaultEntry("5", "Netflix", "family@example.com", "https://netflix.com", "Shared with family"),
-    MockVaultEntry("6", "Amazon", "user@gmail.com", "https://amazon.com", "Prime account")
-)
+import com.vaultpass.desktop.domain.models.VaultEntry
+import com.vaultpass.desktop.data.models.VaultEntryPayload
+import com.vaultpass.desktop.ui.viewmodels.VaultViewModel
+import kotlinx.coroutines.launch
 
 @Composable
-fun VaultScreen() {
-    var selectedEntry by remember { mutableStateOf<MockVaultEntry?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
+fun VaultScreen(viewModel: VaultViewModel) {
+    val state by viewModel.uiState.collectAsState()
+    var selectedEntry by remember { mutableStateOf<VaultEntry?>(null) }
+    var sortAscending by remember { mutableStateOf(true) }
+    val clipboardManager = LocalClipboardManager.current
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    val filteredEntries = MOCK_ENTRIES.filter {
-        it.title.contains(searchQuery, ignoreCase = true) || it.username.contains(searchQuery, ignoreCase = true)
+    // Clear selection if it was deleted
+    LaunchedEffect(state.entries) {
+        if (selectedEntry != null && state.entries.none { it.id == selectedEntry?.id }) {
+            selectedEntry = null
+        } else if (selectedEntry != null) {
+            // Update selected entry with new data
+            selectedEntry = state.entries.find { it.id == selectedEntry?.id }
+        }
     }
 
-    Row(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        // Left Pane: Master List
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.surface)
-        ) {
-            VaultToolbar(
-                searchQuery = searchQuery,
-                onSearchChange = { searchQuery = it }
-            )
+    LaunchedEffect(state.error) {
+        state.error?.let {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Error: $it")
+                viewModel.clearError()
+            }
+        }
+    }
 
-            Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        Row(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            // Left Pane: Master List
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.surface)
+            ) {
+                VaultToolbar(
+                    searchQuery = state.query.searchQuery,
+                    onSearchChange = { viewModel.updateSearchQuery(it) },
+                    sortAscending = sortAscending,
+                    onToggleSort = { sortAscending = !sortAscending }
+                )
 
-            if (filteredEntries.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.SearchOff, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("No entries found", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+
+                if (state.isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
                     }
-                }
-            } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(filteredEntries) { entry ->
-                        VaultRowItem(
-                            entry = entry,
-                            isSelected = selectedEntry?.id == entry.id,
-                            onClick = { selectedEntry = entry }
+                } else if (state.entries.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.SearchOff, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(if (state.query.searchQuery.isBlank()) "Vault is empty" else "No entries found", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        val sortedEntries = state.entries.sortedWith(
+                            compareBy<VaultEntry> { it.title.lowercase() }.let { if (sortAscending) it else it.reversed() }
                         )
+                        items(sortedEntries) { entry ->
+                            VaultRowItem(
+                                entry = entry,
+                                isSelected = selectedEntry?.id == entry.id,
+                                onClick = { selectedEntry = entry },
+                                onCopyPassword = {
+                                    viewModel.copyPasswordToClipboard(entry.secret, clipboardManager)
+                                    coroutineScope.launch { snackbarHostState.showSnackbar("Password copied (clears in 15s)") }
+                                },
+                                onEdit = { viewModel.showEditDialog(entry.id) }
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        Divider(modifier = Modifier.fillMaxHeight().width(1.dp), color = MaterialTheme.colorScheme.outlineVariant)
+            Divider(modifier = Modifier.fillMaxHeight().width(1.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
-        // Right Pane: Detail View
-        Box(
-            modifier = Modifier
-                .weight(1.5f)
-                .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            if (selectedEntry == null) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Select an item to view details", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // Right Pane: Detail View
+            Box(
+                modifier = Modifier
+                    .weight(1.5f)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
+                if (selectedEntry == null) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Select an item to view details", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    VaultDetailPanel(
+                        entry = selectedEntry!!,
+                        onEdit = { viewModel.showEditDialog(it.id) },
+                        onDelete = { viewModel.deleteEntry(it.id) },
+                        onCopyPassword = {
+                            viewModel.copyPasswordToClipboard(it, clipboardManager)
+                            coroutineScope.launch { snackbarHostState.showSnackbar("Password copied (clears in 15s)") }
+                        },
+                        onCopyUsername = {
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(it))
+                            coroutineScope.launch { snackbarHostState.showSnackbar("Username copied") }
+                        }
+                    )
                 }
-            } else {
-                VaultDetailPanel(entry = selectedEntry!!)
             }
         }
     }
+
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VaultToolbar(
     searchQuery: String,
-    onSearchChange: (String) -> Unit
+    onSearchChange: (String) -> Unit,
+    sortAscending: Boolean,
+    onToggleSort: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        OutlinedTextField(
+        val interactionSource = remember { MutableInteractionSource() }
+        BasicTextField(
             value = searchQuery,
             onValueChange = onSearchChange,
             modifier = Modifier.weight(1f).height(40.dp),
-            placeholder = { Text("Search vault...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(20.dp)) },
             singleLine = true,
-            shape = MaterialTheme.shapes.small,
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-            )
+            textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
+            interactionSource = interactionSource,
+            decorationBox = @Composable { innerTextField ->
+                OutlinedTextFieldDefaults.DecorationBox(
+                    value = searchQuery,
+                    innerTextField = innerTextField,
+                    enabled = true,
+                    singleLine = true,
+                    visualTransformation = VisualTransformation.None,
+                    interactionSource = interactionSource,
+                    placeholder = { Text("Search vault...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                    contentPadding = PaddingValues(top = 0.dp, bottom = 0.dp, start = 12.dp, end = 12.dp),
+                    container = {
+                        OutlinedTextFieldDefaults.ContainerBox(
+                            enabled = true,
+                            isError = false,
+                            interactionSource = interactionSource,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            shape = MaterialTheme.shapes.small
+                        )
+                    }
+                )
+            }
         )
         Spacer(modifier = Modifier.width(16.dp))
-        IconButton(onClick = { /* TODO */ }) {
-            Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface)
-        }
-        IconButton(onClick = { /* TODO */ }) {
-            Icon(Icons.Default.SortByAlpha, contentDescription = "Sort", tint = MaterialTheme.colorScheme.onSurface)
+        IconButton(onClick = onToggleSort) {
+            Icon(
+                imageVector = Icons.Default.SortByAlpha,
+                contentDescription = "Sort",
+                tint = if (sortAscending) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }
 
 @Composable
 private fun VaultRowItem(
-    entry: MockVaultEntry,
+    entry: VaultEntry,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onCopyPassword: () -> Unit,
+    onEdit: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
@@ -168,6 +237,8 @@ private fun VaultRowItem(
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val displayTitle = if (entry.title.isBlank()) "Untitled" else entry.title
+        val displayInitial = displayTitle.take(1).uppercase()
         Box(
             modifier = Modifier
                 .size(32.dp)
@@ -175,19 +246,21 @@ private fun VaultRowItem(
                 .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(entry.title.take(1), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.bodySmall)
+            Text(displayInitial, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.bodySmall)
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(entry.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-            Text(entry.username, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(displayTitle, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+            if (entry.username.isNotBlank()) {
+                Text(entry.username, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         
         if (isHovered || isSelected || isFocused) {
-            IconButton(onClick = { /* Copy Password */ }, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = onCopyPassword, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            IconButton(onClick = { /* Edit */ }, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -195,9 +268,20 @@ private fun VaultRowItem(
 }
 
 @Composable
-private fun VaultDetailPanel(entry: MockVaultEntry) {
+private fun VaultDetailPanel(
+    entry: VaultEntry,
+    onEdit: (VaultEntry) -> Unit,
+    onDelete: (VaultEntry) -> Unit,
+    onCopyPassword: (String) -> Unit,
+    onCopyUsername: (String) -> Unit
+) {
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     var isPasswordVisible by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    val displayTitle = if (entry.title.isBlank()) "Untitled" else entry.title
+    val displayInitial = displayTitle.take(1).uppercase()
 
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp)
@@ -210,15 +294,15 @@ private fun VaultDetailPanel(entry: MockVaultEntry) {
                     .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(entry.title.take(1), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.headlineMedium)
+                Text(displayInitial, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.headlineMedium)
             }
             Spacer(modifier = Modifier.width(24.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(entry.title, style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
+                Text(displayTitle, style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
                 Text("Login Item", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             }
             
-            Button(onClick = { /* TODO */ }) {
+            Button(onClick = { onEdit(entry) }) {
                 Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Edit")
@@ -232,8 +316,7 @@ private fun VaultDetailPanel(entry: MockVaultEntry) {
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false }
                 ) {
-                    DropdownMenuItem(text = { Text("Move to Trash") }, onClick = { menuExpanded = false })
-                    DropdownMenuItem(text = { Text("Export") }, onClick = { menuExpanded = false })
+                    DropdownMenuItem(text = { Text("Delete") }, onClick = { menuExpanded = false; showDeleteConfirm = true })
                 }
             }
         }
@@ -241,22 +324,41 @@ private fun VaultDetailPanel(entry: MockVaultEntry) {
         Spacer(modifier = Modifier.height(32.dp))
 
         // Username Field
-        DetailField(label = "Username", value = entry.username, canCopy = true)
+        DetailField(label = "Username", value = entry.username, canCopy = true, onCopy = { onCopyUsername(entry.username) })
         Spacer(modifier = Modifier.height(16.dp))
 
         // Password Field
         DetailField(
             label = "Password",
-            value = "placeholder_secure_string", // Mock
+            value = entry.secret,
             isPassword = true,
             isPasswordVisible = isPasswordVisible,
             onToggleVisibility = { isPasswordVisible = !isPasswordVisible },
-            canCopy = true
+            canCopy = true,
+            onCopy = { onCopyPassword(entry.secret) }
         )
         Spacer(modifier = Modifier.height(16.dp))
 
         // Website Field
-        DetailField(label = "Website", value = entry.website, canCopy = true, icon = Icons.Default.OpenInNew)
+        DetailField(
+            label = "Website", 
+            value = entry.url, 
+            canCopy = true, 
+            onCopy = {
+                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(entry.url))
+            },
+            icon = Icons.Default.OpenInNew,
+            onIconClick = {
+                try {
+                    if (entry.url.isNotBlank() && java.awt.Desktop.isDesktopSupported()) {
+                        val uri = if (!entry.url.startsWith("http")) java.net.URI("https://${entry.url}") else java.net.URI(entry.url)
+                        java.awt.Desktop.getDesktop().browse(uri)
+                    }
+                } catch (e: Exception) {
+                    // Ignore or log error
+                }
+            }
+        )
         Spacer(modifier = Modifier.height(32.dp))
 
         // Notes
@@ -276,6 +378,23 @@ private fun VaultDetailPanel(entry: MockVaultEntry) {
             )
         }
     }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Entry") },
+            text = { Text("Are you sure you want to delete '$displayTitle'? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete(entry)
+                    showDeleteConfirm = false
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable
@@ -286,7 +405,9 @@ private fun DetailField(
     isPasswordVisible: Boolean = true,
     onToggleVisibility: (() -> Unit)? = null,
     canCopy: Boolean = false,
-    icon: ImageVector? = null
+    onCopy: (() -> Unit)? = null,
+    icon: ImageVector? = null,
+    onIconClick: (() -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -299,7 +420,6 @@ private fun DetailField(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val visualTransformation = if (isPassword && !isPasswordVisible) PasswordVisualTransformation() else VisualTransformation.None
             val displayValue = if (isPassword && !isPasswordVisible) "••••••••••••••••" else value
 
             Text(
@@ -320,16 +440,129 @@ private fun DetailField(
                 }
             }
 
-            if (canCopy) {
-                IconButton(onClick = { /* TODO */ }, modifier = Modifier.size(32.dp)) {
+            if (canCopy && onCopy != null) {
+                IconButton(onClick = onCopy, modifier = Modifier.size(32.dp)) {
                     Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (icon != null) {
-                IconButton(onClick = { /* TODO */ }, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = { onIconClick?.invoke() }, modifier = Modifier.size(32.dp)) {
                     Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
     }
+}
+
+@Composable
+fun EntryDialog(
+    entry: VaultEntry?,
+    onDismiss: () -> Unit,
+    onSave: (VaultEntryPayload.PasswordPayload) -> Unit,
+    pendingPassword: String? = null
+) {
+    var title by remember { mutableStateOf(entry?.title ?: "") }
+    var username by remember { mutableStateOf(entry?.username ?: "") }
+    var password by remember { mutableStateOf(entry?.secret ?: pendingPassword ?: "") }
+    var url by remember { mutableStateOf(entry?.url ?: "") }
+    var notes by remember { mutableStateOf(entry?.notes ?: "") }
+    var isPasswordVisible by remember { mutableStateOf(false) }
+
+    var titleError by remember { mutableStateOf(false) }
+
+    val generateRandomPassword = {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*"
+        val sb = java.lang.StringBuilder()
+        for (i in 0 until 16) {
+            sb.append(chars[kotlin.random.Random.nextInt(chars.length)])
+        }
+        password = sb.toString()
+        isPasswordVisible = true
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (entry == null) "Add Password" else "Edit Password") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it; titleError = false },
+                    label = { Text("Title") },
+                    isError = titleError,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (titleError) {
+                    Text("Title is required", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        Row {
+                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = "Toggle Visibility"
+                                )
+                            }
+                            IconButton(onClick = { generateRandomPassword() }) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Generate inline")
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                PasswordStrengthIndicator(password)
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("Website URL") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (title.isBlank()) {
+                        titleError = true
+                        return@Button
+                    }
+                    onSave(
+                        VaultEntryPayload.PasswordPayload(
+                            title = title,
+                            username = username,
+                            secret = password,
+                            url = url,
+                            notes = notes
+                        )
+                    )
+                }
+            ) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
