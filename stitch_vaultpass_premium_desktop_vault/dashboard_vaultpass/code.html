@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VaultPass Dashboard</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed": "#002113",
+                        "on-primary-container": "#00285d",
+                        "primary-fixed-dim": "#adc6ff",
+                        "background": "#121315",
+                        "on-primary-fixed-variant": "#004395",
+                        "on-secondary-fixed-variant": "#004e5c",
+                        "on-surface-variant": "#c2c6d6",
+                        "on-error": "#690005",
+                        "on-secondary-container": "#00424e",
+                        "surface-dim": "#121315",
+                        "surface-tint": "#adc6ff",
+                        "primary-fixed": "#d8e2ff",
+                        "error-container": "#93000a",
+                        "error": "#ffb4ab",
+                        "primary-container": "#4d8eff",
+                        "on-background": "#e3e2e5",
+                        "secondary-container": "#03b5d3",
+                        "surface-variant": "#343537",
+                        "surface-container-high": "#292a2c",
+                        "surface": "#121315",
+                        "tertiary": "#4edea3",
+                        "on-tertiary": "#003824",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#424754",
+                        "on-tertiary-container": "#00311f",
+                        "inverse-surface": "#e3e2e5",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "secondary": "#4cd7f6",
+                        "tertiary-fixed": "#6ffbbe",
+                        "outline": "#8c909f",
+                        "surface-container-low": "#1b1c1e",
+                        "tertiary-container": "#00a572",
+                        "secondary-fixed-dim": "#4cd7f6",
+                        "on-primary-fixed": "#001a42",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "on-surface": "#e3e2e5",
+                        "surface-bright": "#38393b",
+                        "inverse-on-surface": "#303033",
+                        "primary": "#adc6ff",
+                        "surface-container-highest": "#343537",
+                        "surface-container": "#1f2022",
+                        "on-secondary": "#003640",
+                        "inverse-primary": "#005ac2",
+                        "secondary-fixed": "#acedff",
+                        "surface-container-lowest": "#0d0e10",
+                        "on-primary": "#002e6a",
+                        "on-secondary-fixed": "#001f26"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "4px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "grid-gutter": "16px",
+                        "xl": "32px",
+                        "xs": "4px",
+                        "container-margin": "40px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "title-lg": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "title-lg": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for dark theme density */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #343537;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #424754;
+        }
+        
+        /* Glass styling */
+        .glass-panel {
+            background: rgba(22, 23, 26, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        
+        /* Circle Progress Animation */
+        .progress-ring__circle {
+            transition: stroke-dashoffset 1s ease-in-out;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full w-[240px] bg-surface-container-low border-r border-white/10 flex flex-col py-md gap-sm z-40">
+<!-- Brand -->
+<div class="px-lg pb-md flex flex-col">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">VaultPass</h1>
+<span class="font-label-sm text-label-sm text-on-surface-variant tracking-wider uppercase mt-xs">Enterprise Edition</span>
+</div>
+<!-- Navigation Tabs -->
+<ul class="flex flex-col px-sm gap-xs flex-1">
+<!-- Active: Dashboard -->
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-primary font-bold border-r-2 border-primary bg-white/5 transition-colors cursor-pointer active:scale-95 group" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+</li>
+<!-- Inactive -->
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-colors cursor-pointer active:scale-95 group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">lock</span>
+<span class="font-label-md text-label-md">Vault</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-colors cursor-pointer active:scale-95 group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">security</span>
+<span class="font-label-md text-label-md">Security Center</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-colors cursor-pointer active:scale-95 group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">password</span>
+<span class="font-label-md text-label-md">Generator</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-colors cursor-pointer active:scale-95 group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">delete</span>
+<span class="font-label-md text-label-md">Recycle Bin</span>
+</a>
+</li>
+</ul>
+<!-- Bottom Actions -->
+<div class="mt-auto px-lg flex flex-col gap-sm">
+<button class="w-full bg-primary text-on-primary py-[8px] px-md rounded-lg font-label-md text-label-md font-bold flex items-center justify-center gap-sm hover:bg-primary-fixed transition-colors">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                Add New Entry
+            </button>
+<a class="flex items-center gap-md px-md py-sm -mx-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-colors cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</div>
+</nav>
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-240px)] z-50 bg-surface/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-lg h-[64px]">
+<!-- Search -->
+<div class="flex items-center w-[400px] relative">
+<span class="material-symbols-outlined absolute left-md text-on-surface-variant pointer-events-none">search</span>
+<input class="w-full bg-surface-container-low border border-white/10 rounded-full py-[8px] pl-[44px] pr-md text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-body-md text-body-md transition-all" placeholder="Search vault, tags, or fields... (Cmd+K)" type="text"/>
+</div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-sm">
+<button class="p-sm rounded-full text-on-surface-variant hover:text-on-surface hover:bg-white/10 transition-colors focus-within:ring-2 focus-within:ring-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">sync</span>
+</button>
+<button class="p-sm rounded-full text-on-surface-variant hover:text-on-surface hover:bg-white/10 transition-colors focus-within:ring-2 focus-within:ring-primary flex items-center justify-center relative">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-[6px] right-[8px] w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="p-sm rounded-full text-on-surface-variant hover:text-on-surface hover:bg-white/10 transition-colors focus-within:ring-2 focus-within:ring-primary flex items-center justify-center ml-sm border border-white/10">
+<span class="material-symbols-outlined text-[24px]">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[240px] pt-[64px] p-container-margin min-h-screen">
+<!-- Header -->
+<div class="mb-xl">
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Overview</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-xs">Your vault is currently highly secure. 3 items require attention.</p>
+</div>
+<!-- Fluid Bento Grid -->
+<div class="grid grid-cols-12 gap-grid-gutter auto-rows-min">
+<!-- Security Score Cell (col-span-4) -->
+<div class="col-span-12 lg:col-span-4 glass-panel border border-white/10 rounded-xl p-lg flex flex-col items-center justify-center relative overflow-hidden">
+<h3 class="font-title-lg text-title-lg text-on-surface w-full text-left mb-xl">Security Score</h3>
+<div class="relative w-[160px] h-[160px] flex items-center justify-center mb-md">
+<!-- SVG Radial Gauge -->
+<svg class="w-full h-full absolute top-0 left-0" viewbox="0 0 100 100">
+<!-- Background Circle -->
+<circle class="text-surface-container-high stroke-current" cx="50" cy="50" fill="transparent" r="40" stroke-width="8"></circle>
+<!-- Progress Circle (84%) -->
+<circle class="text-tertiary stroke-current progress-ring__circle" cx="50" cy="50" fill="transparent" r="40" stroke-dasharray="251.2" stroke-dashoffset="40.192" stroke-linecap="round" stroke-width="8"></circle>
+</svg>
+<!-- Center Text -->
+<div class="flex flex-col items-center justify-center z-10">
+<span class="font-display-lg text-display-lg text-on-surface leading-none">84</span>
+<span class="font-label-sm text-label-sm text-tertiary mt-1 uppercase tracking-widest">Excellent</span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant text-center max-w-[80%]">
+                    You're in the top 15% of users. Update your weakest passwords to reach 90+.
+                </p>
+</div>
+<!-- Quick Stats & Vault Health Group (col-span-8) -->
+<div class="col-span-12 lg:col-span-8 grid grid-cols-12 gap-grid-gutter h-full">
+<!-- Stat 1: Total -->
+<div class="col-span-4 glass-panel border border-white/10 rounded-xl p-lg flex flex-col justify-between">
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-md text-label-md font-bold uppercase tracking-wider">Total Items</span>
+<span class="material-symbols-outlined text-[20px]">database</span>
+</div>
+<div class="mt-md">
+<span class="font-headline-lg text-headline-lg text-on-surface">142</span>
+</div>
+</div>
+<!-- Stat 2: Weak -->
+<div class="col-span-4 glass-panel border border-white/10 rounded-xl p-lg flex flex-col justify-between relative overflow-hidden group hover:border-error/30 transition-colors">
+<div class="absolute inset-0 bg-error/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-md text-label-md font-bold uppercase tracking-wider text-error">Weak</span>
+<span class="material-symbols-outlined text-[20px] text-error">warning</span>
+</div>
+<div class="mt-md flex items-end justify-between">
+<span class="font-headline-lg text-headline-lg text-error">3</span>
+<button class="font-label-sm text-label-sm text-error/80 hover:text-error underline underline-offset-2">Review</button>
+</div>
+</div>
+<!-- Stat 3: Reused -->
+<div class="col-span-4 glass-panel border border-white/10 rounded-xl p-lg flex flex-col justify-between relative overflow-hidden group hover:border-secondary/30 transition-colors">
+<div class="absolute inset-0 bg-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex items-center justify-between text-on-surface-variant">
+<span class="font-label-md text-label-md font-bold uppercase tracking-wider text-secondary">Reused</span>
+<span class="material-symbols-outlined text-[20px] text-secondary">content_copy</span>
+</div>
+<div class="mt-md flex items-end justify-between">
+<span class="font-headline-lg text-headline-lg text-secondary">1</span>
+<button class="font-label-sm text-label-sm text-secondary/80 hover:text-secondary underline underline-offset-2">Review</button>
+</div>
+</div>
+<!-- Vault Health Chart (Spans full width of this sub-grid) -->
+<div class="col-span-12 glass-panel border border-white/10 rounded-xl p-lg flex flex-col justify-center">
+<div class="flex items-center justify-between mb-lg">
+<h3 class="font-title-lg text-title-lg text-on-surface">Vault Health</h3>
+<button class="p-xs text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+<!-- Simplified Bar Chart via CSS -->
+<div class="flex flex-col gap-sm w-full">
+<!-- Strong -->
+<div class="flex items-center gap-md">
+<span class="font-label-md text-label-md w-[80px] text-on-surface-variant">Strong</span>
+<div class="flex-1 h-[8px] bg-surface-container-highest rounded-full overflow-hidden flex">
+<div class="bg-tertiary h-full rounded-full" style="width: 85%;"></div>
+</div>
+<span class="font-label-md text-label-md w-[40px] text-right">120</span>
+</div>
+<!-- Average -->
+<div class="flex items-center gap-md">
+<span class="font-label-md text-label-md w-[80px] text-on-surface-variant">Average</span>
+<div class="flex-1 h-[8px] bg-surface-container-highest rounded-full overflow-hidden flex">
+<div class="bg-secondary h-full rounded-full" style="width: 12%;"></div>
+</div>
+<span class="font-label-md text-label-md w-[40px] text-right">18</span>
+</div>
+<!-- Weak -->
+<div class="flex items-center gap-md">
+<span class="font-label-md text-label-md w-[80px] text-on-surface-variant text-error">Weak</span>
+<div class="flex-1 h-[8px] bg-surface-container-highest rounded-full overflow-hidden flex">
+<div class="bg-error h-full rounded-full" style="width: 3%;"></div>
+</div>
+<span class="font-label-md text-label-md w-[40px] text-right text-error">4</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Activity (col-span-8) -->
+<div class="col-span-12 lg:col-span-8 glass-panel border border-white/10 rounded-xl p-0 flex flex-col">
+<div class="p-lg border-b border-white/5 flex items-center justify-between">
+<h3 class="font-title-lg text-title-lg text-on-surface">Recent Activity</h3>
+<button class="font-label-sm text-label-sm text-primary hover:text-primary-fixed transition-colors">View All</button>
+</div>
+<div class="flex flex-col">
+<!-- Row 1 -->
+<div class="flex items-center justify-between px-lg h-[56px] hover:bg-white/[0.04] transition-colors border-b border-white/5 group cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded bg-[#ea4335]/20 flex items-center justify-center text-[#ea4335]">
+<span class="material-symbols-outlined text-[16px]">mail</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">Google Workspace</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-normal">work@company.com</span>
+</div>
+</div>
+<div class="flex items-center gap-xl">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Updated 2h ago</span>
+<div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-xs">
+<button class="p-[4px] text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[18px]">content_copy</span></button>
+<button class="p-[4px] text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[18px]">open_in_new</span></button>
+</div>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="flex items-center justify-between px-lg h-[56px] hover:bg-white/[0.04] transition-colors border-b border-white/5 group cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded bg-[#1da1f2]/20 flex items-center justify-center text-[#1da1f2]">
+<span class="material-symbols-outlined text-[16px]">tag</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">Twitter / X</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-normal">@design_sys</span>
+</div>
+</div>
+<div class="flex items-center gap-xl">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Accessed 5h ago</span>
+<div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-xs">
+<button class="p-[4px] text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[18px]">content_copy</span></button>
+<button class="p-[4px] text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[18px]">open_in_new</span></button>
+</div>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="flex items-center justify-between px-lg h-[56px] hover:bg-white/[0.04] transition-colors border-b border-white/5 group cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center text-on-surface border border-white/10">
+<span class="material-symbols-outlined text-[16px]">terminal</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">AWS Prod Console</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-normal">root-access</span>
+</div>
+</div>
+<div class="flex items-center gap-xl">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Accessed yesterday</span>
+<div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-xs">
+<button class="p-[4px] text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[18px]">content_copy</span></button>
+<button class="p-[4px] text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[18px]">open_in_new</span></button>
+</div>
+</div>
+</div>
+<!-- Row 4 -->
+<div class="flex items-center justify-between px-lg h-[56px] hover:bg-white/[0.04] transition-colors group cursor-pointer rounded-b-xl">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[16px]">credit_card</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">Corporate Amex</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-normal">•••• 4021</span>
+</div>
+</div>
+<div class="flex items-center gap-xl">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Added 2d ago</span>
+<div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-xs">
+<button class="p-[4px] text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[18px]">content_copy</span></button>
+<button class="p-[4px] text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[18px]">visibility</span></button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Actions Stack (col-span-4) -->
+<div class="col-span-12 lg:col-span-4 flex flex-col gap-grid-gutter h-full">
+<!-- Action 1 -->
+<button class="glass-panel border border-white/10 rounded-xl p-md flex items-center gap-md hover:bg-white/5 hover:border-primary/50 transition-all text-left group">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined">password</span>
+</div>
+<div class="flex flex-col flex-1">
+<span class="font-label-md text-label-md text-on-surface font-bold">Generate Password</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-normal mt-xs">Create a strong, unique string</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward</span>
+</button>
+<!-- Action 2 -->
+<button class="glass-panel border border-white/10 rounded-xl p-md flex items-center gap-md hover:bg-white/5 hover:border-secondary/50 transition-all text-left group">
+<div class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-on-secondary transition-colors">
+<span class="material-symbols-outlined">radar</span>
+</div>
+<div class="flex flex-col flex-1">
+<span class="font-label-md text-label-md text-on-surface font-bold">Security Scan</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-normal mt-xs">Check for compromised data</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward</span>
+</button>
+<!-- Security Tip -->
+<div class="glass-panel border border-tertiary/20 bg-tertiary/5 rounded-xl p-lg flex flex-col flex-1 mt-auto">
+<div class="flex items-center gap-sm text-tertiary mb-sm">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">lightbulb</span>
+<span class="font-label-sm text-label-sm font-bold uppercase tracking-wider">Security Tip</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface/90">
+                        Enable 2FA on your primary email account. It acts as the master key to password resets across most services.
+                    </p>
+</div>
+</div>
+</div>
+</main>
+</body></html>

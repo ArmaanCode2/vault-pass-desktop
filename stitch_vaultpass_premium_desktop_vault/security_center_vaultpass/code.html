@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VaultPass - Security Center</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-fixed": "#002113",
+                      "on-primary-container": "#00285d",
+                      "primary-fixed-dim": "#adc6ff",
+                      "background": "#121315",
+                      "on-primary-fixed-variant": "#004395",
+                      "on-secondary-fixed-variant": "#004e5c",
+                      "on-surface-variant": "#c2c6d6",
+                      "on-error": "#690005",
+                      "on-secondary-container": "#00424e",
+                      "surface-dim": "#121315",
+                      "surface-tint": "#adc6ff",
+                      "primary-fixed": "#d8e2ff",
+                      "error-container": "#93000a",
+                      "error": "#ffb4ab",
+                      "primary-container": "#4d8eff",
+                      "on-background": "#e3e2e5",
+                      "secondary-container": "#03b5d3",
+                      "surface-variant": "#343537",
+                      "surface-container-high": "#292a2c",
+                      "surface": "#121315",
+                      "tertiary": "#4edea3",
+                      "on-tertiary": "#003824",
+                      "on-error-container": "#ffdad6",
+                      "outline-variant": "#424754",
+                      "on-tertiary-container": "#00311f",
+                      "inverse-surface": "#e3e2e5",
+                      "on-tertiary-fixed-variant": "#005236",
+                      "secondary": "#4cd7f6",
+                      "tertiary-fixed": "#6ffbbe",
+                      "outline": "#8c909f",
+                      "surface-container-low": "#1b1c1e",
+                      "tertiary-container": "#00a572",
+                      "secondary-fixed-dim": "#4cd7f6",
+                      "on-primary-fixed": "#001a42",
+                      "tertiary-fixed-dim": "#4edea3",
+                      "on-surface": "#e3e2e5",
+                      "surface-bright": "#38393b",
+                      "inverse-on-surface": "#303033",
+                      "primary": "#adc6ff",
+                      "surface-container-highest": "#343537",
+                      "surface-container": "#1f2022",
+                      "on-secondary": "#003640",
+                      "inverse-primary": "#005ac2",
+                      "secondary-fixed": "#acedff",
+                      "surface-container-lowest": "#0d0e10",
+                      "on-primary": "#002e6a",
+                      "on-secondary-fixed": "#001f26"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "base": "4px",
+                      "sm": "8px",
+                      "md": "16px",
+                      "grid-gutter": "16px",
+                      "xl": "32px",
+                      "xs": "4px",
+                      "container-margin": "40px",
+                      "lg": "24px"
+              },
+              "fontFamily": {
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "label-sm": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ],
+                      "title-lg": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.01em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "label-sm": [
+                              "11px",
+                              {
+                                      "lineHeight": "14px",
+                                      "letterSpacing": "0.03em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "title-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        /* Custom Scrollbar for power users */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #121315; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #343537; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #424754; 
+        }
+        
+        /* Glass styling for cells */
+        .bento-cell {
+            background-color: #16171A;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 0.75rem;
+            padding: 24px;
+            transition: all 0.2s ease;
+        }
+        .bento-cell:hover {
+            background-color: #1C1E21;
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        /* Progress Bar Animation */
+        @keyframes fillProgress {
+            from { width: 0; }
+        }
+        .animate-progress {
+            animation: fillProgress 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        
+        /* Material Icon setup */
+        .material-symbols-outlined {
+          font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased overflow-x-hidden">
+<!-- SideNavBar (Shared Component) -->
+<nav class="fixed left-0 top-0 h-full w-[240px] bg-surface-container-low dark:bg-surface-container-low border-r border-white/10 flex flex-col py-md gap-sm z-40 hidden md:flex">
+<div class="px-lg pb-md mb-md border-b border-white/5">
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary">VaultPass</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mt-xs">Enterprise Edition</p>
+</div>
+<div class="flex-1 px-sm flex flex-col gap-xs">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-colors cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-colors cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined text-[20px]">lock</span>
+<span class="font-label-md text-label-md">Vault</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-primary dark:text-primary font-bold border-r-2 border-primary bg-white/5 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined text-[20px] icon-fill">security</span>
+<span class="font-label-md text-label-md">Security Center</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-colors cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined text-[20px]">password</span>
+<span class="font-label-md text-label-md">Generator</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-colors cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+<span class="font-label-md text-label-md">Recycle Bin</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-colors cursor-pointer active:scale-95 mt-auto" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</div>
+<div class="px-lg mt-md">
+<button class="w-full bg-primary text-on-primary font-label-md text-label-md py-sm px-md rounded-lg flex items-center justify-center gap-sm hover:bg-primary-fixed transition-colors">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                Add New Entry
+            </button>
+</div>
+</nav>
+<!-- TopNavBar (Shared Component) -->
+<header class="fixed top-0 right-0 w-full md:w-[calc(100%-240px)] z-50 bg-surface/80 dark:bg-surface/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-lg h-[64px]">
+<!-- Mobile Menu Toggle -->
+<button class="md:hidden text-on-surface-variant hover:text-primary transition-colors p-sm rounded-md hover:bg-white/10">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<!-- Command Bar Search -->
+<div class="flex-1 max-w-xl mx-auto md:mx-0 md:ml-xl hidden sm:flex items-center focus-within:ring-2 focus-within:ring-primary rounded-lg bg-[#16171A] border border-white/10 transition-all">
+<span class="material-symbols-outlined text-on-surface-variant pl-md text-[20px]">search</span>
+<input class="w-full bg-transparent border-none focus:ring-0 text-on-surface font-body-md text-body-md py-sm px-md placeholder:text-on-surface-variant/50" placeholder="Search vault... (Cmd+K)" type="text"/>
+</div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-sm">
+<button class="p-sm rounded-full text-on-surface-variant hover:text-primary hover:bg-white/10 transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-[20px]">sync</span>
+</button>
+<button class="p-sm rounded-full text-on-surface-variant hover:text-primary hover:bg-white/10 transition-colors cursor-pointer relative">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-1 right-1 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="p-sm rounded-full text-on-surface-variant hover:text-primary hover:bg-white/10 transition-colors cursor-pointer ml-sm">
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-white/10 object-cover" data-alt="A macro, extremely detailed photograph of a polished obsidian sphere reflecting a sophisticated, minimalist light-mode user interface. The sphere sits on a matte dark gray surface. The lighting is crisp and cool, casting sharp but subtle shadows. The overall aesthetic is highly modern, secure, and technological, perfectly fitting a high-end enterprise dashboard context." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBf6opySIfzV1cBS2H2rYDRX8_kB9agh7JCNOIYLJh8PrzmpGDvtTSOHrJ9jFD1xo_XA3w3h7iY3ZtDtJHQy6qltQXYMxjfrB_cedjrK4nsMsv_ASBD3zs29ZLtdtSCevS33zyVdNIoc1-NhHDAXTTB_ENdrau7sw3qGb3TbOvwnf4lyp9QuleBglon14G-gsPxhe7UtUmG9rfO8kxfX2-LneXoaOp7R4MrjDzx5wW-6rDx5cynaROm"/>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-[64px] md:pl-[240px] min-h-screen p-container-margin md:p-xl transition-all pb-32 md:pb-xl">
+<!-- Page Header -->
+<div class="mb-xl">
+<h2 class="font-display-lg text-display-lg text-on-surface mb-xs">Security Center</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-3xl">Comprehensive analysis of your vault's security posture. Address warnings to improve your overall score.</p>
+</div>
+<!-- Fluid Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-grid-gutter">
+<!-- Overall Score Card (Span 12) -->
+<div class="col-span-12 bento-cell relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-xl">
+<!-- Decorative background glow -->
+<div class="absolute -top-32 -right-32 w-96 h-96 bg-tertiary/10 rounded-full blur-3xl pointer-events-none"></div>
+<div class="flex-1 z-10 flex flex-col md:flex-row items-center md:items-start gap-lg text-center md:text-left">
+<div class="relative w-32 h-32 flex-shrink-0">
+<!-- Circular Progress SVG -->
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 100 100">
+<circle cx="50" cy="50" fill="none" r="45" stroke="#292a2c" stroke-width="8"></circle>
+<circle class="transition-all duration-1000 ease-out animate-progress" cx="50" cy="50" fill="none" r="45" stroke="#4edea3" stroke-dasharray="283" stroke-dashoffset="70" stroke-width="8" style="stroke-dashoffset: 62;"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="font-display-lg text-display-lg text-tertiary">78</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Good</span>
+</div>
+</div>
+<div class="flex flex-col justify-center h-full">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-sm">Vault Security Score</h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md">Your security posture is decent, but there's room for improvement. 4 critical issues need your immediate attention.</p>
+<div class="flex gap-md mt-md justify-center md:justify-start">
+<div class="flex items-center gap-xs">
+<span class="w-3 h-3 rounded-full bg-error"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">4 Critical</span>
+</div>
+<div class="flex items-center gap-xs">
+<span class="w-3 h-3 rounded-full bg-[#f59e0b]"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">12 Warnings</span>
+</div>
+<div class="flex items-center gap-xs">
+<span class="w-3 h-3 rounded-full bg-tertiary"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">245 Healthy</span>
+</div>
+</div>
+</div>
+</div>
+<div class="z-10 w-full md:w-auto">
+<button class="w-full md:w-auto bg-primary text-on-primary font-label-md text-label-md py-md px-xl rounded-lg hover:bg-primary-fixed transition-colors">
+                        Run Full Scan
+                    </button>
+</div>
+</div>
+<!-- Audit Cards Section Header -->
+<div class="col-span-12 mt-md">
+<h3 class="font-title-lg text-title-lg text-on-surface border-b border-white/5 pb-sm">Vulnerability Audit</h3>
+</div>
+<!-- Audit Cards (Span 4 on large, 6 on medium, 12 on small) -->
+<!-- Weak Passwords -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 bento-cell flex flex-col justify-between min-h-[220px]">
+<div>
+<div class="flex justify-between items-start mb-sm">
+<div class="flex items-center gap-sm">
+<div class="p-sm rounded-md bg-error/10 text-error">
+<span class="material-symbols-outlined text-[24px]">key_off</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-on-surface">Weak Passwords</h4>
+</div>
+<span class="font-headline-md text-headline-md text-error font-bold">4</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-md">Passwords shorter than 12 characters or lacking complexity.</p>
+</div>
+<div class="mt-auto">
+<div class="w-full bg-surface-container-high h-2 rounded-full mb-md overflow-hidden">
+<div class="bg-error h-full rounded-full animate-progress" style="width: 15%;"></div>
+</div>
+<button class="w-full border border-white/10 bg-transparent text-on-surface font-label-md text-label-md py-sm px-md rounded-lg hover:bg-white/5 transition-colors flex items-center justify-center gap-sm">
+                        Review Entries
+                        <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Reused Passwords -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 bento-cell flex flex-col justify-between min-h-[220px]">
+<div>
+<div class="flex justify-between items-start mb-sm">
+<div class="flex items-center gap-sm">
+<div class="p-sm rounded-md bg-[#f59e0b]/10 text-[#f59e0b]">
+<span class="material-symbols-outlined text-[24px]">content_copy</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-on-surface">Reused Passwords</h4>
+</div>
+<span class="font-headline-md text-headline-md text-[#f59e0b] font-bold">8</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-md">Same password used across multiple different accounts.</p>
+</div>
+<div class="mt-auto">
+<div class="w-full bg-surface-container-high h-2 rounded-full mb-md overflow-hidden">
+<div class="bg-[#f59e0b] h-full rounded-full animate-progress" style="width: 25%;"></div>
+</div>
+<button class="w-full border border-white/10 bg-transparent text-on-surface font-label-md text-label-md py-sm px-md rounded-lg hover:bg-white/5 transition-colors flex items-center justify-center gap-sm">
+                        Review Entries
+                        <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Old Passwords -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 bento-cell flex flex-col justify-between min-h-[220px]">
+<div>
+<div class="flex justify-between items-start mb-sm">
+<div class="flex items-center gap-sm">
+<div class="p-sm rounded-md bg-[#f59e0b]/10 text-[#f59e0b]">
+<span class="material-symbols-outlined text-[24px]">history</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-on-surface">Old Passwords</h4>
+</div>
+<span class="font-headline-md text-headline-md text-[#f59e0b] font-bold">12</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-md">Passwords that haven't been changed in over 12 months.</p>
+</div>
+<div class="mt-auto">
+<div class="w-full bg-surface-container-high h-2 rounded-full mb-md overflow-hidden">
+<div class="bg-[#f59e0b] h-full rounded-full animate-progress" style="width: 35%;"></div>
+</div>
+<button class="w-full border border-white/10 bg-transparent text-on-surface font-label-md text-label-md py-sm px-md rounded-lg hover:bg-white/5 transition-colors flex items-center justify-center gap-sm">
+                        Review Entries
+                        <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Duplicate Entries -->
+<div class="col-span-12 md:col-span-6 lg:col-span-6 bento-cell flex flex-col justify-between min-h-[220px]">
+<div>
+<div class="flex justify-between items-start mb-sm">
+<div class="flex items-center gap-sm">
+<div class="p-sm rounded-md bg-tertiary/10 text-tertiary">
+<span class="material-symbols-outlined text-[24px]">library_add_check</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-on-surface">Duplicate Entries</h4>
+</div>
+<span class="font-headline-md text-headline-md text-tertiary font-bold">0</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-md">Multiple vault items storing identical credentials for the same service.</p>
+</div>
+<div class="mt-auto">
+<div class="w-full bg-surface-container-high h-2 rounded-full mb-md overflow-hidden">
+<div class="bg-tertiary h-full rounded-full animate-progress" style="width: 100%;"></div>
+</div>
+<button class="w-full border border-white/10 bg-transparent text-on-surface font-label-md text-label-md py-sm px-md rounded-lg opacity-50 cursor-not-allowed flex items-center justify-center gap-sm" disabled="">
+                        All Clear
+                        <span class="material-symbols-outlined text-[16px]">check</span>
+</button>
+</div>
+</div>
+<!-- Missing 2FA -->
+<div class="col-span-12 md:col-span-12 lg:col-span-6 bento-cell flex flex-col justify-between min-h-[220px]">
+<div>
+<div class="flex justify-between items-start mb-sm">
+<div class="flex items-center gap-sm">
+<div class="p-sm rounded-md bg-error/10 text-error">
+<span class="material-symbols-outlined text-[24px]">verified_user</span>
+</div>
+<h4 class="font-title-lg text-title-lg text-on-surface">Missing 2FA</h4>
+</div>
+<span class="font-headline-md text-headline-md text-error font-bold">15</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-md">Important accounts that support Two-Factor Authentication but don't have it enabled.</p>
+</div>
+<div class="mt-auto">
+<div class="w-full bg-surface-container-high h-2 rounded-full mb-md overflow-hidden">
+<div class="bg-error h-full rounded-full animate-progress" style="width: 45%;"></div>
+</div>
+<button class="w-full border border-white/10 bg-transparent text-on-surface font-label-md text-label-md py-sm px-md rounded-lg hover:bg-white/5 transition-colors flex items-center justify-center gap-sm">
+                        Review Entries
+                        <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</body></html>

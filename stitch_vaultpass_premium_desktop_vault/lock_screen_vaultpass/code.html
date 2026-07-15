@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VaultPass - Unlock</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-fixed": "#002113",
+                      "on-primary-container": "#00285d",
+                      "primary-fixed-dim": "#adc6ff",
+                      "background": "#121315",
+                      "on-primary-fixed-variant": "#004395",
+                      "on-secondary-fixed-variant": "#004e5c",
+                      "on-surface-variant": "#c2c6d6",
+                      "on-error": "#690005",
+                      "on-secondary-container": "#00424e",
+                      "surface-dim": "#121315",
+                      "surface-tint": "#adc6ff",
+                      "primary-fixed": "#d8e2ff",
+                      "error-container": "#93000a",
+                      "error": "#ffb4ab",
+                      "primary-container": "#4d8eff",
+                      "on-background": "#e3e2e5",
+                      "secondary-container": "#03b5d3",
+                      "surface-variant": "#343537",
+                      "surface-container-high": "#292a2c",
+                      "surface": "#121315",
+                      "tertiary": "#4edea3",
+                      "on-tertiary": "#003824",
+                      "on-error-container": "#ffdad6",
+                      "outline-variant": "#424754",
+                      "on-tertiary-container": "#00311f",
+                      "inverse-surface": "#e3e2e5",
+                      "on-tertiary-fixed-variant": "#005236",
+                      "secondary": "#4cd7f6",
+                      "tertiary-fixed": "#6ffbbe",
+                      "outline": "#8c909f",
+                      "surface-container-low": "#1b1c1e",
+                      "tertiary-container": "#00a572",
+                      "secondary-fixed-dim": "#4cd7f6",
+                      "on-primary-fixed": "#001a42",
+                      "tertiary-fixed-dim": "#4edea3",
+                      "on-surface": "#e3e2e5",
+                      "surface-bright": "#38393b",
+                      "inverse-on-surface": "#303033",
+                      "primary": "#adc6ff",
+                      "surface-container-highest": "#343537",
+                      "surface-container": "#1f2022",
+                      "on-secondary": "#003640",
+                      "inverse-primary": "#005ac2",
+                      "secondary-fixed": "#acedff",
+                      "surface-container-lowest": "#0d0e10",
+                      "on-primary": "#002e6a",
+                      "on-secondary-fixed": "#001f26"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "base": "4px",
+                      "sm": "8px",
+                      "md": "16px",
+                      "grid-gutter": "16px",
+                      "xl": "32px",
+                      "xs": "4px",
+                      "container-margin": "40px",
+                      "lg": "24px"
+              },
+              "fontFamily": {
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "label-sm": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ],
+                      "title-lg": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.01em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "label-sm": [
+                              "11px",
+                              {
+                                      "lineHeight": "14px",
+                                      "letterSpacing": "0.03em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "title-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        body {
+            background-color: #0B0C0E;
+            background-image: radial-gradient(circle at 50% -20%, #1a1e28 0%, #0B0C0E 70%);
+            color: theme('colors.on-surface');
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .glass-cell {
+            background-color: #16171A;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .input-glass {
+            background-color: #16171A;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: white;
+            transition: all 0.2s ease;
+        }
+
+        .input-glass:focus {
+            outline: none;
+            border-color: theme('colors.primary');
+            box-shadow: 0 0 0 1px theme('colors.primary');
+        }
+
+        .btn-primary {
+            background-color: theme('colors.primary');
+            color: theme('colors.on-primary');
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: theme('colors.primary-fixed-dim');
+            transform: translateY(-1px);
+        }
+
+        .btn-ghost {
+            background-color: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: theme('colors.on-surface');
+            transition: all 0.2s ease;
+        }
+
+        .btn-ghost:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Input specific styling to remove default webkit styles */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {
+            display: none;
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md antialiased selection:bg-primary-container selection:text-on-primary-container">
+<!-- Suppress Main Nav & FAB for linear transactional intent -->
+<main class="w-full max-w-[420px] px-md">
+<!-- Bento Cell Container -->
+<div class="glass-cell rounded-xl p-[32px] flex flex-col items-center shadow-2xl relative overflow-hidden">
+<!-- Subtle ambient glow top right inside the cell -->
+<div class="absolute -top-24 -right-24 w-48 h-48 bg-primary rounded-full blur-[80px] opacity-10 pointer-events-none"></div>
+<!-- Logo Area -->
+<div class="mb-lg flex flex-col items-center space-y-sm w-full">
+<img alt="VaultPass Logo" class="w-[80px] h-[80px] object-contain drop-shadow-lg" src="https://lh3.googleusercontent.com/aida/AP1WRLtTfJ3kOlo9gb-JTuNtuJJuAEgJCwEdaGkZwKX_marULikmea_LgrE3JA-tH7jAnPxQnsq9htjKwELKS3VgJKZePPXNv_Bu7TRG5TmYIx_--Cvs756S_EZjnSmiLzKM0OD9OXF0T7SWEKw1S2bX2kajKpuyIVcnK9HFK1qhsvOaB5TtjoMTEiHvwAS_JJ5VuU-r3s7aQkow6Gpps6mDbVS5h7XfJTxGsLFKN6N43XEdABOWyT03PsHZHg"/>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight mt-sm">VaultPass</h1>
+</div>
+<!-- Authentication Form -->
+<form class="w-full flex flex-col gap-lg mt-sm">
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant" for="master-password">Master Password</label>
+<div class="relative w-full">
+<input autocomplete="current-password" class="input-glass w-full rounded-lg h-[48px] px-md font-body-lg text-body-lg" id="master-password" placeholder="••••••••••••••••" required="" type="password"/>
+<button aria-label="Toggle password visibility" class="absolute right-0 top-0 h-full px-md text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors focus:outline-none focus:text-primary group" onclick="togglePassword()" type="button">
+<span class="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform" id="visibility-icon">visibility_off</span>
+</button>
+</div>
+</div>
+<div class="flex flex-col gap-md">
+<button class="btn-primary w-full h-[48px] rounded-lg font-label-md text-label-md flex items-center justify-center gap-sm" type="submit">
+<span class="material-symbols-outlined text-[18px]">lock_open</span>
+                        Unlock Vault
+                    </button>
+<div class="relative flex items-center py-sm">
+<div class="flex-grow border-t border-white/5"></div>
+<span class="flex-shrink-0 mx-md text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">Or</span>
+<div class="flex-grow border-t border-white/5"></div>
+</div>
+<button class="btn-ghost w-full h-[48px] rounded-lg font-label-md text-label-md flex items-center justify-center gap-sm" type="button">
+<span class="material-symbols-outlined text-[20px]">fingerprint</span>
+                        Use Touch ID
+                    </button>
+</div>
+</form>
+</div>
+<!-- Bottom Links -->
+<div class="mt-lg flex justify-between items-center px-sm w-full">
+<button class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors focus:outline-none">Forgot Password?</button>
+<button class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors focus:outline-none">Switch User</button>
+</div>
+</main>
+<script>
+        function togglePassword() {
+            const passwordInput = document.getElementById('master-password');
+            const icon = document.getElementById('visibility-icon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.textContent = 'visibility';
+            } else {
+                passwordInput.type = 'password';
+                icon.textContent = 'visibility_off';
+            }
+        }
+    </script>
+</body></html>

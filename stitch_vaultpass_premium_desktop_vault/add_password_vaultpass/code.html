@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VaultPass - Add Password</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed": "#002113",
+                        "on-primary-container": "#00285d",
+                        "primary-fixed-dim": "#adc6ff",
+                        "background": "#121315",
+                        "on-primary-fixed-variant": "#004395",
+                        "on-secondary-fixed-variant": "#004e5c",
+                        "on-surface-variant": "#c2c6d6",
+                        "on-error": "#690005",
+                        "on-secondary-container": "#00424e",
+                        "surface-dim": "#121315",
+                        "surface-tint": "#adc6ff",
+                        "primary-fixed": "#d8e2ff",
+                        "error-container": "#93000a",
+                        "error": "#ffb4ab",
+                        "primary-container": "#4d8eff",
+                        "on-background": "#e3e2e5",
+                        "secondary-container": "#03b5d3",
+                        "surface-variant": "#343537",
+                        "surface-container-high": "#292a2c",
+                        "surface": "#121315",
+                        "tertiary": "#4edea3",
+                        "on-tertiary": "#003824",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#424754",
+                        "on-tertiary-container": "#00311f",
+                        "inverse-surface": "#e3e2e5",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "secondary": "#4cd7f6",
+                        "tertiary-fixed": "#6ffbbe",
+                        "outline": "#8c909f",
+                        "surface-container-low": "#1b1c1e",
+                        "tertiary-container": "#00a572",
+                        "secondary-fixed-dim": "#4cd7f6",
+                        "on-primary-fixed": "#001a42",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "on-surface": "#e3e2e5",
+                        "surface-bright": "#38393b",
+                        "inverse-on-surface": "#303033",
+                        "primary": "#adc6ff",
+                        "surface-container-highest": "#343537",
+                        "surface-container": "#1f2022",
+                        "on-secondary": "#003640",
+                        "inverse-primary": "#005ac2",
+                        "secondary-fixed": "#acedff",
+                        "surface-container-lowest": "#0d0e10",
+                        "on-primary": "#002e6a",
+                        "on-secondary-fixed": "#001f26"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "4px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "grid-gutter": "16px",
+                        "xl": "32px",
+                        "xs": "4px",
+                        "container-margin": "40px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "title-lg": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "title-lg": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Custom Scrollbar for notes area if needed */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen overflow-hidden flex items-center justify-center relative">
+<!-- Ambient Background / Dashboard context blur -->
+<div class="absolute inset-0 z-0 bg-[url('placeholder')] bg-cover bg-center opacity-30" data-alt="A highly secure, dark-themed digital vault dashboard in the background. It features a sophisticated grid layout with glowing blue and green data visualizations representing encrypted information streams. The overall aesthetic is futuristic SaaS modernism with deep blacks, precise lines, and subtle glassmorphism effects indicating layers of security." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCkbvoelLBgaO0d-TKMp871oqQyO4jXzvcLR9UZD42UaczMocMiqxvaMWbSbp5MA-IbODA1Zt81VkASIdRC5b5S6zJYPbgemHgaZapMR7sMXDRef7b3PswQkVG3noN32iFBXeh8eHvS3BO3cMaBoy1ufWobx-JN_dPD6H3sNNzF07yVdad-xoCGi2MBAsoZ3Zz-36eVdVi-mulL4H_XzbfVY6yJxlR0j1iYLYGVIfD68NK7STwzp0kN')"></div>
+<div class="absolute inset-0 z-0 bg-background/80 backdrop-blur-xl"></div>
+<!-- Modal Backdrop -->
+<div class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity flex items-center justify-center p-md">
+<!-- Add Password Modal Container -->
+<div class="w-full max-w-[600px] bg-[#16171A] border border-white/10 rounded-xl shadow-[0_8px_32px_-4px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden relative z-50 animate-in fade-in zoom-in-95 duration-200">
+<!-- Header -->
+<div class="flex items-center justify-between px-lg py-md border-b border-white/5">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" style="font-size: 20px;">key</span>
+</div>
+<h2 class="font-title-lg text-title-lg text-on-surface">Add New Entry</h2>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-white/5 p-sm rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50">
+<span class="material-symbols-outlined" style="font-size: 20px;">close</span>
+</button>
+</div>
+<!-- Body -->
+<div class="p-lg overflow-y-auto flex flex-col gap-md max-h-[716px]">
+<!-- Title & Website Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant" for="entry-title">Title *</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant/50 pointer-events-none" style="font-size: 18px;">title</span>
+<input class="w-full bg-[#121315] border border-white/10 rounded-lg pl-[36px] pr-md py-sm text-on-surface font-body-md focus:border-primary focus:ring-1 focus:ring-primary transition-colors outline-none placeholder:text-on-surface-variant/30" id="entry-title" placeholder="e.g. Amazon" type="text"/>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant" for="entry-url">Website URL</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant/50 pointer-events-none" style="font-size: 18px;">language</span>
+<input class="w-full bg-[#121315] border border-white/10 rounded-lg pl-[36px] pr-md py-sm text-on-surface font-body-md focus:border-primary focus:ring-1 focus:ring-primary transition-colors outline-none placeholder:text-on-surface-variant/30" id="entry-url" placeholder="https://" type="url"/>
+</div>
+</div>
+</div>
+<!-- Username & Password Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md mt-sm">
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant" for="entry-username">Username / Email *</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant/50 pointer-events-none" style="font-size: 18px;">person</span>
+<input class="w-full bg-[#121315] border border-white/10 rounded-lg pl-[36px] pr-md py-sm text-on-surface font-body-md focus:border-primary focus:ring-1 focus:ring-primary transition-colors outline-none placeholder:text-on-surface-variant/30" id="entry-username" placeholder="user@example.com" type="text"/>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<div class="flex justify-between items-end">
+<label class="font-label-md text-label-md text-on-surface-variant" for="entry-password">Password *</label>
+<button class="text-primary font-label-md text-label-md hover:underline flex items-center gap-xs" type="button">
+<span class="material-symbols-outlined" style="font-size: 14px;">auto_awesome</span> Generate
+                            </button>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant/50 pointer-events-none" style="font-size: 18px;">lock</span>
+<input class="w-full bg-[#121315] border border-white/10 rounded-lg pl-[36px] pr-[70px] py-sm text-on-surface font-body-md focus:border-primary focus:ring-1 focus:ring-primary transition-colors outline-none" id="entry-password" type="password" value="••••••••••••"/>
+<div class="absolute right-xs top-1/2 -translate-y-1/2 flex items-center gap-xs">
+<button class="p-xs text-on-surface-variant/70 hover:text-on-surface rounded hover:bg-white/5 transition-colors focus:outline-none" title="Show password" type="button">
+<span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
+</button>
+<button class="p-xs text-on-surface-variant/70 hover:text-on-surface rounded hover:bg-white/5 transition-colors focus:outline-none" title="Copy password" type="button">
+<span class="material-symbols-outlined" style="font-size: 18px;">content_copy</span>
+</button>
+</div>
+</div>
+<!-- Strength Meter -->
+<div class="flex items-center gap-sm mt-1">
+<div class="flex-1 h-1 bg-surface-variant rounded-full overflow-hidden flex gap-0.5">
+<div class="h-full w-full bg-tertiary"></div>
+<div class="h-full w-full bg-tertiary"></div>
+<div class="h-full w-full bg-tertiary"></div>
+<div class="h-full w-full bg-surface"></div>
+</div>
+<span class="font-label-sm text-label-sm text-tertiary uppercase tracking-wider">Strong</span>
+</div>
+</div>
+</div>
+<!-- Category & Tags Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md mt-sm">
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant" for="entry-category">Category</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant/50 pointer-events-none" style="font-size: 18px;">folder</span>
+<select class="w-full bg-[#121315] border border-white/10 rounded-lg pl-[36px] pr-md py-sm text-on-surface font-body-md focus:border-primary focus:ring-1 focus:ring-primary transition-colors outline-none appearance-none cursor-pointer" id="entry-category">
+<option value="logins">Logins</option>
+<option value="secure_notes">Secure Notes</option>
+<option value="credit_cards">Credit Cards</option>
+<option value="identities">Identities</option>
+</select>
+<span class="material-symbols-outlined absolute right-sm top-1/2 -translate-y-1/2 text-on-surface-variant/50 pointer-events-none" style="font-size: 18px;">expand_more</span>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant" for="entry-tags">Tags</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant/50 pointer-events-none" style="font-size: 18px;">sell</span>
+<input class="w-full bg-[#121315] border border-white/10 rounded-lg pl-[36px] pr-md py-sm text-on-surface font-body-md focus:border-primary focus:ring-1 focus:ring-primary transition-colors outline-none placeholder:text-on-surface-variant/30" id="entry-tags" placeholder="Add tags (comma separated)" type="text"/>
+</div>
+</div>
+</div>
+<!-- Notes -->
+<div class="flex flex-col gap-xs mt-sm">
+<label class="font-label-md text-label-md text-on-surface-variant" for="entry-notes">Notes</label>
+<textarea class="w-full bg-[#121315] border border-white/10 rounded-lg p-sm text-on-surface font-body-md focus:border-primary focus:ring-1 focus:ring-primary transition-colors outline-none placeholder:text-on-surface-variant/30 resize-y min-h-[80px]" id="entry-notes" placeholder="Add secure notes here..." rows="3"></textarea>
+</div>
+<!-- Toggles -->
+<div class="flex items-center justify-between p-sm border border-white/5 rounded-lg bg-surface mt-sm">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary" style="font-size: 20px;">star</span>
+<div>
+<p class="font-title-lg text-title-lg text-on-surface text-[14px]">Mark as Favorite</p>
+<p class="font-label-md text-label-md text-on-surface-variant">Pin this entry to your dashboard</p>
+</div>
+</div>
+<!-- Custom Toggle Switch -->
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+<!-- Footer Actions -->
+<div class="flex items-center justify-end gap-md px-lg py-md border-t border-white/5 bg-[#1C1E21]/50">
+<button class="px-md py-sm rounded-lg font-label-md text-label-md text-on-surface border border-white/10 hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50" type="button">
+                    Cancel
+                </button>
+<button class="px-md py-sm rounded-lg font-label-md text-label-md bg-primary text-on-primary hover:bg-primary-fixed transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background flex items-center gap-xs" type="button">
+<span class="material-symbols-outlined" style="font-size: 18px;">save</span>
+                    Save Entry
+                </button>
+</div>
+</div>
+</div>
+</body></html>
