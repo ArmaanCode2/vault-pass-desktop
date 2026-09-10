@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/logo.png" alt="VaultPass Logo" width="110" height="110" />
   <h1>VaultPass Desktop</h1>
-  <p><strong>Your passwords stay on your computer. No cloud. No accounts. 100% offline.</strong></p>
+  <p><strong>Your passwords stay on your computer. Zero cloud. Zero telemetry. 100% local vault.</strong></p>
   <p>A fast, private desktop password manager built with Kotlin and Jetpack Compose.</p>
 </div>
 
@@ -9,7 +9,7 @@
 
 ## What is VaultPass Desktop?
 
-VaultPass Desktop is a private, local-only password manager for your PC. It works completely offline: your data is encrypted on your machine and never touches the internet or a cloud server.
+VaultPass Desktop is a private, local-only password manager for your PC. Your credentials are encrypted on your machine and never touch a cloud server. All vault operations are performed entirely offline.
 
 It also connects directly with **VaultPass for Android** over your local Wi-Fi, allowing you to sync credentials between your phone and computer without third-party services.
 
@@ -26,10 +26,12 @@ It also connects directly with **VaultPass for Android** over your local Wi-Fi, 
 
 ## Key Features
 
-### Total Offline Privacy
-* Works 100% offline. No telemetry, no accounts, no cloud dependencies.
-* Strong local encryption keeps your master vault unreadable to anyone else.
+### Total Local Privacy
+* 100% local vault. Zero cloud storage, zero user accounts, and zero telemetry.
+* Strong AES-256 local encryption keeps your vault unreadable to anyone else.
 * Sensitive keys are wiped from system memory the moment the app locks.
+* Works fully offline and in air-gapped environments.
+* Optional, privacy-preserving update checks query public GitHub Releases only; no vault data is ever sent online.
 
 ### Direct Phone-to-PC Sync
 * Pair with your Android phone in seconds by scanning a QR code.
@@ -81,6 +83,12 @@ On first launch, you will be prompted to create your master password and set up 
 ## Mobile Companion
 
 VaultPass Desktop works seamlessly alongside **VaultPass Android**. Both applications share the same offline philosophy and sync directly over local Wi-Fi.
+
+---
+
+## Privacy Policy
+
+VaultPass is built on strict zero-knowledge, zero-cloud principles. Read our full [Privacy Policy](PRIVACY.md) for details on our data isolation, local storage architecture, and network boundaries.
 
 ---
 
