@@ -24,4 +24,27 @@ interface KeyManager {
      */
     @Throws(CryptoException::class)
     fun getActiveDek(): SecureByteArray
+
+    /**
+     * A copy of the active DEK, for a key that leaves the key manager (e.g. the stored startup
+     * session). Unlike [getActiveDek] it can't be zero-filled by [wipeKeys] while it is used;
+     * the caller wipes it when done. Throws when no key is loaded.
+     *
+     * Real implementations must override this and take the copy atomically with respect to
+     * [loadActiveDek] and [wipeKeys], so it is never half wiped (InMemoryKeyManager does). This
+     * default only clones [getActiveDek] and is NOT atomic: a wipe running at the same time can
+     * leave the copy partly zeroed. It exists so simple test fakes keep compiling.
+     */
+    @Throws(CryptoException::class)
+    fun copyActiveDek(): SecureByteArray = SecureByteArray(getActiveDek().data.clone())
+
+    /**
+     * Checks whether an active DEK is currently loaded in memory.
+     */
+    fun hasActiveDek(): Boolean = try {
+        getActiveDek()
+        true
+    } catch (e: Exception) {
+        false
+    }
 }

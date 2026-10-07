@@ -61,6 +61,7 @@ class CryptoManagerImpl(
 
         // Load DEK into KeyManager for the session
         keyManager.loadActiveDek(dek)
+println("[TRACE] CryptoManagerImpl: loadActiveDek called")
 
         // Wipe intermediate keys and arrays
         kek.wipe()
@@ -165,6 +166,75 @@ class CryptoManagerImpl(
             return cipher.doFinal(actualCiphertext)
         } catch (e: Exception) {
             throw CryptoException.DecryptionFailed("Decryption failed", e)
+        }
+    }
+
+    override fun decryptExternalPayload(
+        ciphertext: ByteArray,
+        password: SecureCharArray,
+        kdfConfig: KdfConfig,
+        encryptionConfig: EncryptionConfig
+    ): CryptoResult<ByteArray> {
+        return try {
+            val salt = Base64.getDecoder().decode(kdfConfig.saltBase64)
+            val expectedHash = Base64.getDecoder().decode(kdfConfig.masterHashBase64)
+
+            // 1. Derive KEK
+            val kek = kdfProvider.deriveKek(password, salt, kdfConfig.iterations)
+            
+            // 2. Derive Trial Hash
+            val actualHash = kdfProvider.deriveMasterHash(kek)
+            
+            // 3. Constant-time verification
+            val isVerified = MessageDigest.isEqual(expectedHash, actualHash)
+
+            if (!isVerified) {
+                kek.wipe()
+                actualHash.fill(0)
+                salt.fill(0)
+                expectedHash.fill(0)
+                return CryptoResult.Failure(CryptoException.InvalidKey("Invalid master password for backup"))
+            }
+
+            // 4. Unwrap DEK statelessly
+            val wrappedDek = Base64.getDecoder().decode(encryptionConfig.wrappedDekBase64)
+            val ivDek = Base64.getDecoder().decode(encryptionConfig.ivBase64)
+            
+            val tempDek = encryptionProvider.unwrapDek(wrappedDek, kek, ivDek)
+            
+            // Wipe KEK immediately
+            kek.wipe()
+            actualHash.fill(0)
+            salt.fill(0)
+            expectedHash.fill(0)
+            wrappedDek.fill(0)
+            ivDek.fill(0)
+
+            // 5. Decrypt the ciphertext
+            if (ciphertext.size < IV_LENGTH_BYTES + (TAG_LENGTH_BITS / 8)) {
+                tempDek.wipe()
+                return CryptoResult.Failure(CryptoException.DecryptionFailed("Ciphertext too short"))
+            }
+
+            val buffer = ByteBuffer.wrap(ciphertext)
+            val ivPayload = ByteArray(IV_LENGTH_BYTES)
+            buffer.get(ivPayload)
+            
+            val actualCiphertext = ByteArray(buffer.remaining())
+            buffer.get(actualCiphertext)
+            
+            val cipher = Cipher.getInstance(ALGORITHM)
+            val keySpec = SecretKeySpec(tempDek.data, "AES")
+            val gcmSpec = GCMParameterSpec(TAG_LENGTH_BITS, ivPayload)
+            
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec)
+            val plaintext = cipher.doFinal(actualCiphertext)
+            
+            tempDek.wipe() // Free memory
+
+            CryptoResult.Success(plaintext)
+        } catch (e: Exception) {
+            CryptoResult.Failure(CryptoException.DecryptionFailed("Failed to decrypt external payload", e))
         }
     }
 }

@@ -22,9 +22,14 @@ interface FilePicker {
      *
      * @param title The title of the dialogue window.
      * @param defaultFileName The suggested name for the file.
+     * @param allowedExtensions An optional list of allowed file extensions (e.g. listOf("vpex", "json")).
      * @return The selected destination File, or null if the user canceled.
      */
-    suspend fun showSaveFileDialog(title: String, defaultFileName: String): File?
+    suspend fun showSaveFileDialog(
+        title: String, 
+        defaultFileName: String, 
+        allowedExtensions: List<String> = emptyList()
+    ): File?
 
     /**
      * Prompts the user to select a folder (directory).

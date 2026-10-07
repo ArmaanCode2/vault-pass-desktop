@@ -20,10 +20,8 @@ class BackupRepositoryImpl(
     override suspend fun saveBackup(data: ByteArray, destinationIdentifier: String): BackupResult<Unit> = withContext(Dispatchers.IO) {
         try {
             val settings = appSettingsRepository.getSettings()
-            var file: File? = null
-
-            if (settings.backupMode == BackupMode.ASK_EVERY_TIME) {
-                file = fileDialogProvider.showSaveFileDialog(
+            val file: File? = if (settings.backupMode == BackupMode.ASK_EVERY_TIME) {
+                fileDialogProvider.showSaveFileDialog(
                     title = "Export VaultPass Backup",
                     defaultFileName = destinationIdentifier
                 )
@@ -36,12 +34,13 @@ class BackupRepositoryImpl(
                 val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm"))
                 val baseName = "VaultPass_Backup_$timestamp"
                 
-                file = File(folder, "$baseName.vpb")
+                var tempFile = File(folder, "$baseName.vpb")
                 var counter = 1
-                while (file!!.exists()) {
-                    file = File(folder, "$baseName ($counter).vpb")
+                while (tempFile.exists()) {
+                    tempFile = File(folder, "$baseName ($counter).vpb")
                     counter++
                 }
+                tempFile
             }
             
             if (file == null) {

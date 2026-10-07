@@ -20,9 +20,12 @@ import com.vaultpass.desktop.domain.crypto.CryptoResult
  * Concrete implementation of AuthenticationRepository for Milestone 4.4.
  * Delegates cryptographic workflows completely to the CryptoManager.
  */
+import com.vaultpass.desktop.domain.session.SessionKeyStorage
+
 class AuthenticationRepositoryImpl(
     private val metadataRepository: MetadataRepository,
-    private val cryptoManager: CryptoManager
+    private val cryptoManager: CryptoManager,
+    private val sessionKeyStorage: SessionKeyStorage
 ) : AuthenticationRepository {
 
     override suspend fun saveMasterPassword(password: String): Boolean {
@@ -42,6 +45,9 @@ class AuthenticationRepositoryImpl(
 
             // Wipe intermediate password
             securePassword.wipe()
+            
+            // Clear any existing DPAPI session since the master password changed
+            sessionKeyStorage.clearProtectedSession()
             
             true
         } catch (e: Exception) {

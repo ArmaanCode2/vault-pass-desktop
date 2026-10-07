@@ -36,6 +36,7 @@ class SessionSecurityManagerTest {
         override fun close() {}
         override suspend fun vaultCreated(password: String): Boolean = true
         override fun beginSetup() {}
+        override suspend fun onRequireMasterPasswordOnStartupChanged(required: Boolean) {}
     }
 
     private class FakeAppSettingsRepository(

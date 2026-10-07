@@ -31,6 +31,7 @@ object JsonImporter {
 
     fun parse(jsonString: String, existingEntries: List<VaultEntry> = emptyList()): ImportParseResult {
         val validEntries = mutableListOf<VaultEntry>()
+        val duplicateKeys = mutableSetOf<String>()
         var invalidCount = 0
         var duplicateCount = 0
 
@@ -84,6 +85,7 @@ object JsonImporter {
                         val key = "${title.trim().lowercase()}|${username.trim().lowercase()}"
                         if (existingKeys.contains(key)) {
                             duplicateCount++
+                            duplicateKeys.add(key)
                         }
 
                         val now = System.currentTimeMillis()
@@ -125,6 +127,7 @@ object JsonImporter {
                         val key = "${dto.title.trim().lowercase()}|${dto.username.trim().lowercase()}"
                         if (existingKeys.contains(key)) {
                             duplicateCount++
+                            duplicateKeys.add(key)
                         }
 
                         val now = System.currentTimeMillis()
@@ -159,7 +162,8 @@ object JsonImporter {
             validEntries = validEntries,
             invalidCount = invalidCount,
             duplicateCount = duplicateCount,
-            totalCount = validEntries.size + invalidCount
+            totalCount = validEntries.size + invalidCount,
+            duplicateKeys = duplicateKeys
         )
     }
 }

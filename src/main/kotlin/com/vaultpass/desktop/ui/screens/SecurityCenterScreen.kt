@@ -1,273 +1,232 @@
 package com.vaultpass.desktop.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.vaultpass.desktop.domain.models.VaultEntry
-import com.vaultpass.desktop.domain.security.SecurityAnalyzer
+import com.vaultpass.desktop.ui.theme.LocalSpacing
+import com.vaultpass.desktop.ui.theme.SuccessGreen
+import com.vaultpass.desktop.ui.theme.WarningYellow
+import com.vaultpass.desktop.ui.theme.DangerRed
+import com.vaultpass.desktop.ui.viewmodels.DashboardViewModel
 import com.vaultpass.desktop.ui.viewmodels.VaultViewModel
+import kotlin.math.roundToInt
 
 @Composable
 fun SecurityCenterScreen(
     vaultViewModel: VaultViewModel,
+    dashboardViewModel: DashboardViewModel,
     onNavigateToVault: () -> Unit
 ) {
-    val vaultState by vaultViewModel.uiState.collectAsState()
-    val report = SecurityAnalyzer.analyze(vaultState.entries)
+    val dashboardState by dashboardViewModel.uiState.collectAsState()
+    val report = dashboardState.securityReport
+    val spacing = LocalSpacing.current
 
+    val securityScore = report.score
     val scoreColor = when {
-        report.score >= 90 -> MaterialTheme.colorScheme.primary
-        report.score >= 70 -> MaterialTheme.colorScheme.secondary
-        else -> MaterialTheme.colorScheme.error
+        dashboardState.totalPasswords == 0 -> Color(0xFF888888)
+        securityScore >= 90 -> SuccessGreen
+        securityScore >= 70 -> WarningYellow
+        else -> DangerRed
     }
 
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 400.dp),
-        contentPadding = PaddingValues(32.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF0D0D0D)) // Canvas background
+            .padding(spacing.lg)
     ) {
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Column(modifier = Modifier.padding(bottom = 16.dp)) {
-                Text(
-                    text = "Security Center",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground
+        // Master Score & Recommendations (enclosed in a card)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, Color(0xFF242424), RoundedCornerShape(12.dp))
+                .background(Color(0xFF1A1A1A))
+                .padding(16.dp)
+        ) {
+            val animatedScore = remember { Animatable(0f) }
+            LaunchedEffect(securityScore) {
+                animatedScore.animateTo(
+                    targetValue = securityScore.toFloat(),
+                    animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Review and improve your vault's security.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
-        }
 
-        // Master Score
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 1.dp
-            ) {
-                Row(
-                    modifier = Modifier.padding(24.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .background(scoreColor.copy(alpha = 0.1f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = report.score.toString(),
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = scoreColor
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(24.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Overall Security Score",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        val desc = if (report.score == 100) "Your passwords are very secure." else "Address the warnings below to achieve a perfect score."
-                        Text(
-                            text = desc,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-
-        // Recommendations
-        if (report.recommendations.isNotEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    tonalElevation = 0.dp
-                ) {
-                    Column(modifier = Modifier.padding(24.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Lightbulb, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Recommendations",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        report.recommendations.forEach { rec ->
-                            Row(modifier = Modifier.padding(vertical = 4.dp)) {
-                                Text("•", modifier = Modifier.padding(end = 8.dp), color = MaterialTheme.colorScheme.onPrimaryContainer)
-                                Text(rec, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Metrics / Issue Sections
-        item {
-            IssueCard(
-                title = "Weak Passwords",
-                entries = report.weakEntries,
-                icon = if (report.weakEntries.isEmpty()) Icons.Default.CheckCircle else Icons.Default.Warning,
-                color = if (report.weakEntries.isEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                vaultViewModel = vaultViewModel,
-                onNavigateToVault = onNavigateToVault
-            )
-        }
-        item {
-            IssueCard(
-                title = "Reused Passwords",
-                entries = report.reusedEntries,
-                icon = if (report.reusedEntries.isEmpty()) Icons.Default.CheckCircle else Icons.Default.ContentCopy,
-                color = if (report.reusedEntries.isEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                vaultViewModel = vaultViewModel,
-                onNavigateToVault = onNavigateToVault
-            )
-        }
-        item {
-            IssueCard(
-                title = "Duplicate Entries",
-                entries = report.duplicateEntries,
-                icon = if (report.duplicateEntries.isEmpty()) Icons.Default.CheckCircle else Icons.Default.ContentCopy,
-                color = if (report.duplicateEntries.isEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                vaultViewModel = vaultViewModel,
-                onNavigateToVault = onNavigateToVault
-            )
-        }
-        item {
-            IssueCard(
-                title = "Old Passwords",
-                entries = report.oldEntries,
-                icon = if (report.oldEntries.isEmpty()) Icons.Default.CheckCircle else Icons.Default.History,
-                color = if (report.oldEntries.isEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                vaultViewModel = vaultViewModel,
-                onNavigateToVault = onNavigateToVault
-            )
-        }
-    }
-}
-
-@Composable
-private fun IssueCard(
-    title: String,
-    entries: List<VaultEntry>,
-    icon: ImageVector,
-    color: Color,
-    vaultViewModel: VaultViewModel,
-    onNavigateToVault: () -> Unit
-) {
-    var isExpanded by remember { mutableStateOf(false) }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp
-    ) {
-        Column(modifier = Modifier.padding(24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(color.copy(alpha = 0.1f)),
+                    modifier = Modifier.size(72.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(imageVector = icon, contentDescription = null, tint = color)
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface
+                    CircularProgressIndicator(
+                        progress = { animatedScore.value / 100f },
+                        color = scoreColor,
+                        strokeWidth = 6.dp,
+                        trackColor = scoreColor.copy(alpha = 0.1f),
+                        modifier = Modifier.fillMaxSize()
                     )
                     Text(
-                        text = entries.size.toString(),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = "${animatedScore.value.roundToInt()}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = scoreColor
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(20.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Security Score",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = when {
+                            dashboardState.totalPasswords == 0 -> "Add some passwords to generate a report."
+                            securityScore == 100 -> "Your vault meets all security recommendations."
+                            else -> "Review and fix weak or reused passwords to secure your vault."
+                        },
+                        fontSize = 12.sp,
+                        color = Color(0xFF888888)
                     )
                 }
             }
+        }
 
-            if (entries.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded }.padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(if (isExpanded) "Hide Details" else "Review Issues", color = MaterialTheme.colorScheme.primary)
-                    Icon(
-                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "Vulnerabilities & Issues",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        // List of entries with issues in cards with badges
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .border(1.dp, Color(0xFF242424), RoundedCornerShape(12.dp))
+                .background(Color(0xFF1A1A1A))
+                .padding(16.dp)
+        ) {
+            val allIssues = remember(report) {
+                val weak = report.weakEntries.map { it to "Weak Password" }
+                val reused = report.reusedEntries.map { it to "Reused Password" }
+                (weak + reused).distinctBy { it.first.id }
+            }
+
+            if (allIssues.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = SuccessGreen,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "No security issues detected",
+                            fontSize = 14.sp,
+                            color = Color(0xFFE8E8E8)
+                        )
+                    }
                 }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(allIssues, key = { it.first.id }) { (entry, issueType) ->
+                        val displayTitle = if (entry.title.isBlank()) "Untitled" else entry.title
+                        val isWeak = issueType == "Weak Password"
+                        val badgeBg = if (isWeak) Color(0xFFFF6B6B).copy(alpha = 0.15f) else Color(0xFFFFB900).copy(alpha = 0.15f)
+                        val badgeTextCol = if (isWeak) Color(0xFFFF6B6B) else Color(0xFFFFB900)
 
-                AnimatedVisibility(visible = isExpanded) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        entries.forEach { entry ->
-                            val displayTitle = if (entry.title.isBlank()) "Untitled" else entry.title
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        vaultViewModel.showEditDialog(entry.id)
-                                        onNavigateToVault()
-                                    }
-                                    .padding(vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = displayTitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                                    if (entry.username.isNotBlank()) {
-                                        Text(text = entry.username, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, Color(0xFF242424), RoundedCornerShape(8.dp))
+                                .background(Color(0xFF0D0D0D)) // Canvas background inside card
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = displayTitle,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    // Severity Badge
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(badgeBg)
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isWeak) "Weak" else "Reused",
+                                            color = badgeTextCol,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
                                     }
                                 }
-                                Text("Fix", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (isWeak) {
+                                        "This password is easy to guess. Update it with a strong, randomized password."
+                                    } else {
+                                        "This password is used across multiple accounts. Reusing passwords increases breach risks."
+                                    },
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF888888)
+                                )
+                            }
+                            
+                            // Action Button: Inactive style by default (#1e1e1e, color #aaa)
+                            Button(
+                                onClick = {
+                                    vaultViewModel.showEditDialog(entry.id)
+                                    onNavigateToVault()
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF1E1E1E),
+                                    contentColor = Color(0xFFE8E8E8)
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Text("Fix", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }

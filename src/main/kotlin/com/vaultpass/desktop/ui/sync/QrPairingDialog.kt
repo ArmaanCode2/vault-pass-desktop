@@ -39,7 +39,7 @@ fun QrPairingDialog(
 ) {
     val qrBitmap by syncViewModel.qrCodeBitmap.collectAsState()
     val syncState by syncViewModel.syncState.collectAsState()
-    val pendingPairingRequest by syncViewModel.pendingPairingRequest.collectAsState()
+    val pendingPairingInfo by syncViewModel.pendingPairingInfo.collectAsState()
 
     var isFirewallGranted by remember { mutableStateOf<Boolean?>(null) }
     var isRequestingUac by remember { mutableStateOf(false) }
@@ -117,7 +117,7 @@ fun QrPairingDialog(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Phone connected: \"${pendingPairingRequest?.deviceName ?: "Android Device"}\". Accept pairing with this device?",
+                            text = "Phone connected: \"${pendingPairingInfo?.deviceName ?: "Android Device"}\". Accept pairing with this device?",
                             fontSize = 13.sp,
                             color = Color(0xFFCCCCCC),
                             textAlign = TextAlign.Center
@@ -237,14 +237,14 @@ fun QrPairingDialog(
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    text = "⚡ Automatic Reverse Sync is enabled. If pairing connects normally, no firewall change is needed.",
+                                    text = "Your phone connects directly to this PC. If pairing connects normally, no firewall change is needed.",
                                     fontSize = 11.sp,
                                     color = Color(0xFFB0B0B0),
                                     lineHeight = 15.sp
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "If your Windows Firewall strictly blocks connections and pairing fails, you can optionally click below to allow network access:",
+                                    text = "If Windows Firewall blocks the phone, click below to allow VaultPass on private networks. Your Wi-Fi must be set to \"Private\" in Windows network settings; public networks stay blocked.",
                                     fontSize = 11.sp,
                                     color = Color(0xFF888888),
                                     lineHeight = 15.sp

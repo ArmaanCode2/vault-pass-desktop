@@ -2,6 +2,7 @@ package com.vaultpass.desktop.ui.viewmodels
 
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import com.vaultpass.desktop.domain.models.CustomField
 import com.vaultpass.desktop.domain.models.PagedVaultResult
 import com.vaultpass.desktop.domain.models.VaultEntry
 import com.vaultpass.desktop.data.models.VaultEntryPayload
@@ -37,16 +38,20 @@ data class VaultUiState(
     val isRecycleBinLoading: Boolean = true,
     val error: String? = null,
     val isAddDialogVisible: Boolean = false,
-    val editEntryId: String? = null
+    val editEntryId: String? = null,
+    val recycleBinRetentionDays: Int = 30
 )
 
 class VaultViewModel(
     private val vaultRepository: VaultRepository,
-    private val appSettingsRepository: AppSettingsRepository? = null
+    private val appSettingsRepository: AppSettingsRepository? = null,
+    private val secureClipboardManager: com.vaultpass.desktop.domain.clipboard.SecureClipboardManager = com.vaultpass.desktop.data.clipboard.WindowsSecureClipboardManager(),
+    private val passwordGenerator: com.vaultpass.desktop.domain.generator.PasswordGenerator = com.vaultpass.desktop.data.generator.SecurePasswordGeneratorImpl()
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val _uiState = MutableStateFlow(VaultUiState())
     val uiState: StateFlow<VaultUiState> = _uiState.asStateFlow()
+    val clipboardCountdown: StateFlow<com.vaultpass.desktop.domain.clipboard.ClipboardCountdown> = secureClipboardManager.countdownState
 
     init {
         scope.launch {
@@ -60,7 +65,10 @@ class VaultViewModel(
                     else -> Pair(com.vaultpass.desktop.domain.models.SortField.TITLE, com.vaultpass.desktop.domain.models.SortDirection.ASCENDING)
                 }
                 _uiState.update {
-                    it.copy(query = it.query.copy(sortField = sortField, sortDirection = sortDirection))
+                    it.copy(
+                        query = it.query.copy(sortField = sortField, sortDirection = sortDirection),
+                        recycleBinRetentionDays = settings.recycleBinRetentionDays
+                    )
                 }
             }
         }
@@ -76,10 +84,24 @@ class VaultViewModel(
         allEntriesJob?.cancel()
         allDeletedEntriesJob?.cancel()
         clipboardClearJob?.cancel()
+        secureClipboardManager.clearClipboard()
         _uiState.value = VaultUiState()
     }
 
+    fun runAutoCleanupIfConfigured() {
+        scope.launch(Dispatchers.IO) {
+            val settings = appSettingsRepository?.getSettings() ?: return@launch
+            val retentionDays = settings.recycleBinRetentionDays
+            _uiState.update { it.copy(recycleBinRetentionDays = retentionDays) }
+            if (retentionDays > 0) {
+                val cutoffMillis = System.currentTimeMillis() - (retentionDays.toLong() * 24L * 60L * 60L * 1000L)
+                vaultRepository.purgeRecycleBinOlderThan(cutoffMillis)
+            }
+        }
+    }
+
     private fun observeAllEntries() {
+        runAutoCleanupIfConfigured()
         allEntriesJob?.cancel()
         allEntriesJob = scope.launch(Dispatchers.IO) {
             vaultRepository.observeAllEntries(isDeleted = false).collectLatest { result ->
@@ -289,6 +311,7 @@ class VaultViewModel(
                 notes = payload.notes,
                 category = payload.category,
                 tags = payload.tags,
+                customFields = payload.customFields.map { CustomField(it.key, it.value) },
                 createdAt = System.currentTimeMillis(),
                 updatedAt = System.currentTimeMillis()
             )
@@ -321,6 +344,7 @@ class VaultViewModel(
                     notes = payload.notes,
                     category = payload.category,
                     tags = payload.tags,
+                    customFields = payload.customFields.map { CustomField(it.key, it.value) },
                     history = updatedHistory,
                     updatedAt = System.currentTimeMillis()
                 )
@@ -416,24 +440,51 @@ class VaultViewModel(
         }
     }
 
+    fun restoreSelectedEntries(ids: List<String>) {
+        scope.launch(Dispatchers.IO) {
+            val result = vaultRepository.restoreEntries(ids)
+            if (result is RepositoryResult.Error) {
+                _uiState.update { it.copy(error = result.error.message) }
+            }
+        }
+    }
+
+    fun permanentlyDeleteSelectedEntries(ids: List<String>) {
+        scope.launch(Dispatchers.IO) {
+            val result = vaultRepository.hardDeleteEntries(ids)
+            if (result is RepositoryResult.Error) {
+                _uiState.update { it.copy(error = result.error.message) }
+            }
+        }
+    }
+
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }
 
-    fun copyPasswordToClipboard(secret: String, clipboardManager: androidx.compose.ui.platform.ClipboardManager) {
-        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(secret))
-        
-        clipboardClearJob?.cancel()
-        clipboardClearJob = scope.launch {
+    fun copyPasswordToClipboard(secret: String, clipboardManager: androidx.compose.ui.platform.ClipboardManager? = null) {
+        scope.launch {
             val timeoutSeconds = appSettingsRepository?.getSettings()?.clearClipboardTimeoutSeconds ?: 30
-            if (timeoutSeconds > 0) {
-                kotlinx.coroutines.delay(timeoutSeconds * 1000L)
-                val currentClip = clipboardManager.getText()?.text
-                if (currentClip == secret) {
-                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(""))
-                }
+            secureClipboardManager.copySensitive(
+                com.vaultpass.desktop.domain.security.SecureCharArray(secret.toCharArray()),
+                "Password",
+                timeoutSeconds
+            )
+            if (clipboardManager != null) {
+                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(secret))
             }
         }
+    }
+
+    fun copyUsernameToClipboard(username: String, clipboardManager: androidx.compose.ui.platform.ClipboardManager? = null) {
+        secureClipboardManager.copyPlain(username, "Username", ttlSeconds = 0)
+        if (clipboardManager != null) {
+            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(username))
+        }
+    }
+
+    fun clearClipboardNow() {
+        secureClipboardManager.clearClipboard()
     }
 
     fun showAddDialog(show: Boolean) {
@@ -441,6 +492,11 @@ class VaultViewModel(
     }
 
     fun showEditDialog(entryId: String?) {
+        val entry = entryId?.let { id -> _uiState.value.allActiveEntries.find { it.id == id } }
+        if (entry?.isCorrupted == true) {
+            _uiState.update { it.copy(error = "This entry can't be decrypted, so it can't be edited.") }
+            return
+        }
         _uiState.update { it.copy(editEntryId = entryId) }
     }
 
@@ -454,6 +510,14 @@ class VaultViewModel(
         val pwd = _pendingGeneratedPassword
         _pendingGeneratedPassword = null
         return pwd
+    }
+
+    fun generatePassword(config: com.vaultpass.desktop.domain.generator.PasswordConfig = com.vaultpass.desktop.domain.generator.PasswordConfig()): com.vaultpass.desktop.domain.generator.GeneratedSecret {
+        return passwordGenerator.generatePassword(config)
+    }
+
+    fun generatePassphrase(config: com.vaultpass.desktop.domain.generator.PassphraseConfig = com.vaultpass.desktop.domain.generator.PassphraseConfig()): com.vaultpass.desktop.domain.generator.GeneratedSecret {
+        return passwordGenerator.generatePassphrase(config)
     }
 
     fun refresh() {

@@ -16,6 +16,7 @@ import com.vaultpass.desktop.domain.backup.models.format.BackupHeader
 import com.vaultpass.desktop.domain.backup.models.format.BackupPayload
 import com.vaultpass.desktop.domain.backup.models.format.CategoryBackup
 import com.vaultpass.desktop.domain.backup.models.format.TagBackup
+import com.vaultpass.desktop.domain.backup.models.format.CustomFieldBackup
 import com.vaultpass.desktop.domain.backup.models.format.VaultEntryBackup
 import com.vaultpass.desktop.domain.backup.models.format.VaultMetadataBackup
 import com.vaultpass.desktop.domain.backup.models.format.VpbFile
@@ -31,17 +32,24 @@ import com.vaultpass.desktop.domain.models.VaultCategory
 import com.vaultpass.desktop.domain.security.SecureCharArray
 
 
+import com.vaultpass.desktop.domain.session.SessionKeyStorage
+
 class BackupManagerImpl(
     private val vaultRepository: VaultRepository,
-    private val categoryRepository: CategoryRepository,
     private val metadataRepository: MetadataRepository,
     private val cryptoManager: CryptoManager,
     private val backupRepository: BackupRepository,
     private val backupSerializer: BackupSerializer,
-    private val backupValidator: BackupValidator
+    private val backupValidator: BackupValidator,
+    private val sessionKeyStorage: SessionKeyStorage
 ) : BackupManager {
 
     private var pendingBackupBytes: ByteArray? = null
+
+    private fun errorText(result: com.vaultpass.desktop.domain.RepositoryResult<*>): String = when (result) {
+        is com.vaultpass.desktop.domain.RepositoryResult.Error -> result.error.message
+        else -> "the vault isn't ready"
+    }
 
 
     override suspend fun createBackup(destinationIdentifier: String): BackupResult<BackupMetadata> {
@@ -55,55 +63,38 @@ class BackupManagerImpl(
             val encryptionConfig = vaultMetadata.encryptionConfig
                 ?: return BackupResult.Failure(BackupException.CorruptedData("Vault is missing Encryption configuration"))
 
-            // 2. Gather Vault Entries
-            val rawEntriesResult = vaultRepository.observeAllEntries().first()
-            val entriesResult = if (rawEntriesResult is com.vaultpass.desktop.domain.RepositoryResult.Success) rawEntriesResult.data else emptyList()
-            val entriesBackup = entriesResult.map {
-                VaultEntryBackup(
-                    id = it.id,
-                    title = it.title,
-                    username = it.username,
-                    secret = it.secret,
-                    url = it.url,
-                    notes = it.notes,
-                    isFavorite = it.isFavorite,
-                    categoryId = it.category,
-                    tagIds = it.tags,
-                    createdAt = it.createdAt,
-                    updatedAt = it.updatedAt
-                )
+            // 2-5. Read, serialize and encrypt in one transaction. The two lists are one snapshot,
+            // and a lock at any point before the end (a closed database reads as empty, and
+            // wipeKeys() zero-fills the key the encryption may be reading) fails the transaction's
+            // commit, so the backup fails instead of writing an empty or zero-key file. The file is
+            // only written once the transaction succeeded; a backup sealed just before a lock may
+            // still be written right after it (it was encrypted with the intact key).
+            var serializerFailure: BackupException? = null
+            val sealed = vaultRepository.transaction {
+                val active = getAllEntries(isDeleted = false)
+                val deleted = getAllEntries(isDeleted = true)
+                if (active !is com.vaultpass.desktop.domain.RepositoryResult.Success) throw IllegalStateException(errorText(active))
+                if (deleted !is com.vaultpass.desktop.domain.RepositoryResult.Success) throw IllegalStateException(errorText(deleted))
+                when (val serialized = backupSerializer.serialize(payloadOf(vaultMetadata, active.data, deleted.data), BackupFormat.JSON_V1)) {
+                    is BackupResult.Success -> cryptoManager.encryptData(serialized.data)
+                    is BackupResult.Failure -> {
+                        serializerFailure = serialized.error
+                        throw serialized.error
+                    }
+                }
             }
-
-            // 3. Gather Categories & Tags (Assuming simple retrieval, if TagRepository exists we'd use it, for now we leave tags empty or fetch if possible)
-            // Note: TagRepository doesn't exist explicitly in our findings so we'll leave it empty for now, as tags are Phase 6.3
-            val rawCategoriesResult = categoryRepository.getAllCategories().first()
-            val categoriesResult = if (rawCategoriesResult is com.vaultpass.desktop.domain.RepositoryResult.Success) rawCategoriesResult.data else emptyList()
-            val categoriesBackup = categoriesResult.map {
-                CategoryBackup(id = it.id, name = it.name)
+            val encryptedBytes = when (sealed) {
+                is com.vaultpass.desktop.domain.RepositoryResult.Success -> sealed.data
+                else -> {
+                    serializerFailure?.let { return BackupResult.Failure(it) }
+                    val reason = if ((sealed as? com.vaultpass.desktop.domain.RepositoryResult.Error)?.error is com.vaultpass.desktop.domain.errors.AuthError.VaultLocked) {
+                        "The vault is locked. Unlock it, then create the backup again."
+                    } else {
+                        "Failed to create backup: couldn't read the vault (${errorText(sealed)})"
+                    }
+                    return BackupResult.Failure(BackupException.StorageError(reason))
+                }
             }
-
-            val metadataBackup = VaultMetadataBackup(
-                name = "VaultPass Backup", // Placeholder or fetch actual if exists
-                lastModified = vaultMetadata.lastOpenedAt ?: System.currentTimeMillis(),
-                securityScore = null
-            )
-
-            val payload = BackupPayload(
-                vaultMetadata = metadataBackup,
-                entries = entriesBackup,
-                categories = categoriesBackup,
-                tags = emptyList() // Tags not yet fully implemented in Domain
-            )
-
-            // 4. Serialize and Compress
-            val serializedBytesResult = backupSerializer.serialize(payload, BackupFormat.JSON_V1)
-            val compressedBytes = when (serializedBytesResult) {
-                is BackupResult.Success -> serializedBytesResult.data
-                is BackupResult.Failure -> return BackupResult.Failure(serializedBytesResult.error)
-            }
-
-            // 5. Encrypt with current active DEK
-            val encryptedBytes = cryptoManager.encryptData(compressedBytes)
             val encryptedPayloadBase64 = Base64.getEncoder().encodeToString(encryptedBytes)
 
             // 6. Build Header
@@ -157,6 +148,51 @@ class BackupManagerImpl(
         } catch (e: Exception) {
             return BackupResult.Failure(BackupException.StorageError("Failed to create backup: ${e.message}", e))
         }
+    }
+
+    /** What a backup holds: the entries that can be decrypted, active and in the recycle bin. */
+    private fun payloadOf(
+        vaultMetadata: com.vaultpass.desktop.domain.models.VaultMetadata,
+        activeEntries: List<VaultEntry>,
+        deletedEntries: List<VaultEntry>
+    ): BackupPayload {
+        // Entries that can't be decrypted have nothing to back up.
+        val entriesResult = (activeEntries + deletedEntries).filter { !it.isCorrupted }
+        val entriesBackup = entriesResult.map {
+            VaultEntryBackup(
+                id = it.id,
+                title = it.title,
+                username = it.username,
+                secret = it.secret,
+                url = it.url,
+                notes = it.notes,
+                isFavorite = it.isFavorite,
+                categoryId = it.category,
+                tagIds = it.tags,
+                createdAt = it.createdAt,
+                updatedAt = it.updatedAt,
+                isDeleted = it.isDeleted,
+                deletedAt = it.deletedAt,
+                customFields = it.customFields.map { field -> CustomFieldBackup(field.key, field.value) }
+            )
+        }
+
+        // 3. Gather Categories & Tags (Assuming simple retrieval, if TagRepository exists we'd use it, for now we leave tags empty or fetch if possible)
+        // Note: TagRepository doesn't exist explicitly in our findings so we'll leave it empty for now, as tags are Phase 6.3
+        val categoriesBackup = emptyList<CategoryBackup>()
+
+        val metadataBackup = VaultMetadataBackup(
+            name = "VaultPass Backup", // Placeholder or fetch actual if exists
+            lastModified = vaultMetadata.lastOpenedAt ?: System.currentTimeMillis(),
+            securityScore = null
+        )
+
+        return BackupPayload(
+            vaultMetadata = metadataBackup,
+            entries = entriesBackup,
+            categories = categoriesBackup,
+            tags = emptyList() // Tags not yet fully implemented in Domain
+        )
     }
 
     override suspend fun restoreBackup(sourceIdentifier: String, masterPassword: CharArray): BackupResult<Unit> {
@@ -215,19 +251,21 @@ class BackupManagerImpl(
             
             val payload = (deserializeResult as BackupResult.Success).data
             
+            val currentMetadata = metadataRepository.getMetadata()
+            if (currentMetadata == null) {
+                val unlockPassword = SecureCharArray(masterPassword.clone())
+                try {
+                    val unlockRes = cryptoManager.unlockVault(unlockPassword, kdfConfig, encryptionConfig)
+                    if (unlockRes is com.vaultpass.desktop.domain.crypto.CryptoResult.Failure) {
+                        return BackupResult.Failure(BackupException.DecryptionFailed("Failed to initialize active DEK for restore."))
+                    }
+                } finally {
+                    unlockPassword.wipe()
+                }
+            }
+
             // 6. Restore to Repositories
             // Note: Currently performing blind inserts (skipping conflict resolution)
-            
-            // Categories
-            payload.categories.forEach { catBackup ->
-                val category = VaultCategory(
-                    id = catBackup.id, 
-                    name = catBackup.name, 
-                    createdAt = System.currentTimeMillis(), 
-                    updatedAt = System.currentTimeMillis()
-                )
-                categoryRepository.insertCategory(category)
-            }
             
             // Entries
             val transactionResult = vaultRepository.transaction {
@@ -241,9 +279,11 @@ class BackupManagerImpl(
                         notes = entryBackup.notes ?: "",
                         category = entryBackup.categoryId,
                         tags = entryBackup.tagIds,
+                        customFields = entryBackup.customFields.map { com.vaultpass.desktop.domain.models.CustomField(it.key, it.value) },
                         history = emptyList(),
                         isFavorite = entryBackup.isFavorite,
-                        isDeleted = false,
+                        isDeleted = entryBackup.isDeleted,
+                        deletedAt = entryBackup.deletedAt,
                         createdAt = entryBackup.createdAt,
                         updatedAt = entryBackup.updatedAt
                     )
@@ -258,8 +298,6 @@ class BackupManagerImpl(
             if (transactionResult is com.vaultpass.desktop.domain.RepositoryResult.Error) {
                 return BackupResult.Failure(BackupException.StorageError("Restore transaction failed: ${transactionResult.error.message}"))
             }
-            
-            val currentMetadata = metadataRepository.getMetadata()
             
             // Re-initialize Metadata to match imported Vault
             val newVaultMetadata = com.vaultpass.desktop.domain.models.VaultMetadata(
@@ -278,6 +316,9 @@ class BackupManagerImpl(
                 encryptionConfig = currentMetadata?.encryptionConfig ?: encryptionConfig
             )
             metadataRepository.saveMetadata(newVaultMetadata)
+            
+            // Clear DPAPI session as we just restored a new vault, requiring a fresh unlock
+            sessionKeyStorage.clearProtectedSession()
             
             return BackupResult.Success(Unit)
         } catch (e: Exception) {

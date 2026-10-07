@@ -21,6 +21,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerButton
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -47,6 +50,7 @@ fun VaultScreen(
     val clipboardManager = LocalClipboardManager.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    var entryPendingDelete by remember { mutableStateOf<VaultEntry?>(null) }
 
     // Clear selection if it was deleted
     LaunchedEffect(state.entries) {
@@ -181,7 +185,7 @@ fun VaultScreen(
                             },
                             onDoubleClick = {
                                 when (settingsState.doubleClickBehaviour) {
-                                    "Open Details" -> {
+                                    "Open Details", "View Details" -> {
                                         selectedEntry = entry
                                         if (settingsState.defaultViewRememberLastSelected) {
                                             settingsViewModel.updateSettings { it.copy(lastSelectedEntryId = entry.id) }
@@ -200,6 +204,10 @@ fun VaultScreen(
                                             coroutineScope.launch { snackbarHostState.showSnackbar("Password copied (clears in 30s)") }
                                         }
                                     }
+                                    "Copy Username" -> {
+                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(entry.username))
+                                        coroutineScope.launch { snackbarHostState.showSnackbar("Username copied") }
+                                    }
                                 }
                             },
                             onCopyPassword = {
@@ -212,7 +220,7 @@ fun VaultScreen(
                                 }
                             },
                             onEdit = { viewModel.showEditDialog(entry.id) },
-                            onDelete = { viewModel.deleteEntry(entry.id) },
+                            onDelete = { entryPendingDelete = entry },
                             onCopyUsername = {
                                 clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(entry.username))
                                 coroutineScope.launch { snackbarHostState.showSnackbar("Username copied") }
@@ -230,12 +238,10 @@ fun VaultScreen(
             if (selectedEntry != null) {
                 VaultDetailPanel(
                     entry = selectedEntry!!,
-                    confirmBeforeDelete = settingsState.confirmBeforeDelete,
                     hidePasswordsByDefault = settingsState.hidePasswordsByDefault,
                     onEdit = { viewModel.showEditDialog(it.id) },
                     onDelete = {
-                        viewModel.deleteEntry(it.id)
-                        selectedEntry = null
+                        entryPendingDelete = it
                     },
                     onCopyPassword = { secret ->
                         if (settingsState.showClipboardHistoryWarning) {
@@ -337,6 +343,57 @@ fun VaultScreen(
             containerColor = Color(0xFF1A1A1A)
         )
     }
+
+    if (entryPendingDelete != null) {
+        val entryToDelete = entryPendingDelete!!
+        AlertDialog(
+            onDismissRequest = { entryPendingDelete = null },
+            title = {
+                Text(
+                    text = "Delete Password",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete '${entryToDelete.title.ifBlank { "Untitled" }}'? It will be moved to the Recycle Bin.",
+                    color = Color(0xFFE8E8E8),
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteEntry(entryToDelete.id)
+                        if (selectedEntry?.id == entryToDelete.id) {
+                            selectedEntry = null
+                        }
+                        entryPendingDelete = null
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Entry moved to Recycle Bin")
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFF4D4D),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Delete", fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { entryPendingDelete = null }
+                ) {
+                    Text("Cancel", color = Color(0xFF888888))
+                }
+            },
+            containerColor = Color(0xFF1E1E1E),
+            shape = RoundedCornerShape(12.dp)
+        )
+    }
 }
 
 @Composable
@@ -403,7 +460,10 @@ private fun VaultToolbar(
     }
 }
 
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(
+    androidx.compose.foundation.ExperimentalFoundationApi::class,
+    androidx.compose.ui.ExperimentalComposeUiApi::class
+)
 @Composable
 private fun VaultRowItem(
     entry: VaultEntry,
@@ -476,6 +536,8 @@ private fun VaultRowItem(
                 .background(cardBg)
                 .border(1.dp, cardBorder, RoundedCornerShape(8.dp))
                 .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = null,
                     onClick = onClick,
                     onDoubleClick = onDoubleClick
                 )
@@ -522,7 +584,6 @@ private fun VaultRowItem(
 @Composable
 private fun VaultDetailPanel(
     entry: VaultEntry,
-    confirmBeforeDelete: Boolean,
     hidePasswordsByDefault: Boolean,
     onEdit: (VaultEntry) -> Unit,
     onDelete: (VaultEntry) -> Unit,
@@ -532,7 +593,8 @@ private fun VaultDetailPanel(
     val clipboardManager = LocalClipboardManager.current
     var isPasswordVisible by remember(entry.id) { mutableStateOf(!hidePasswordsByDefault) }
     var menuExpanded by remember(entry.id) { mutableStateOf(false) }
-    var showDeleteConfirm by remember(entry.id) { mutableStateOf(false) }
+    // Show/hide state of each custom field value, by position.
+    val visibleCustomFields = remember(entry.id) { mutableStateMapOf<Int, Boolean>() }
 
     val displayTitle = if (entry.title.isBlank()) "Untitled" else entry.title
     val displayInitial = displayTitle.take(1).uppercase()
@@ -594,7 +656,7 @@ private fun VaultDetailPanel(
                             text = { Text("Delete") },
                             onClick = {
                                 menuExpanded = false
-                                if (confirmBeforeDelete) showDeleteConfirm = true else onDelete(entry)
+                                onDelete(entry)
                             }
                         )
                     }
@@ -642,6 +704,21 @@ private fun VaultDetailPanel(
         )
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Custom Field Cards (values are secret: masked and copied like the password)
+        entry.customFields.forEachIndexed { index, field ->
+            val isVisible = visibleCustomFields[index] ?: !hidePasswordsByDefault
+            DetailField(
+                label = field.key,
+                value = field.value,
+                isPassword = true,
+                isPasswordVisible = isVisible,
+                onToggleVisibility = { visibleCustomFields[index] = !isVisible },
+                canCopy = true,
+                onCopy = { onCopyPassword(field.value) }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
         // Notes Card
         Column(modifier = Modifier.fillMaxWidth()) {
             Text("Notes", fontSize = 12.sp, color = Color(0xFF888888), modifier = Modifier.padding(bottom = 6.dp))
@@ -659,24 +736,6 @@ private fun VaultDetailPanel(
                 )
             }
         }
-    }
-
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete Entry", color = Color.White) },
-            text = { Text("Are you sure you want to delete '$displayTitle'? This action cannot be undone.", color = Color(0xFFE8E8E8)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDelete(entry)
-                    showDeleteConfirm = false
-                }) { Text("Delete", color = Color(0xFFFF6B6B)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel", color = Color(0xFF888888)) }
-            },
-            containerColor = Color(0xFF1A1A1A)
-        )
     }
 }
 

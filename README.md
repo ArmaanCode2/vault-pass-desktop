@@ -32,11 +32,13 @@ It also connects directly with **VaultPass for Android** over your local Wi-Fi, 
 * Sensitive keys are wiped from system memory the moment the app locks.
 * Works fully offline and in air-gapped environments.
 * Optional, privacy-preserving update checks query public GitHub Releases only; no vault data is ever sent online.
+* Updates install only if they carry a valid VaultPass release signature. Maintainers: see [RELEASING.md](RELEASING.md).
 
 ### Direct Phone-to-PC Sync
 * Pair with your Android phone in seconds by scanning a QR code.
 * Sync directly across your local Wi-Fi network without leaving your house.
-* Side-by-side review screen lets you preview every change before merging.
+* The device that starts a sync reviews every change side by side; the other device approves a summary, and both end up with the same entries.
+* Every message is end-to-end encrypted. Details are in [SYNC_PROTOCOL.md](SYNC_PROTOCOL.md).
 
 ### Easy Password Management
 * Store logins, secure notes, custom fields, and password histories.

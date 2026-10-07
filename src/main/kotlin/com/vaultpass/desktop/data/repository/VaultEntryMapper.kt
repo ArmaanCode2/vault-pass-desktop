@@ -1,9 +1,13 @@
 package com.vaultpass.desktop.data.repository
 
+import com.vaultpass.desktop.data.models.CustomFieldDto
 import com.vaultpass.desktop.data.models.VaultEntity
+import com.vaultpass.desktop.data.models.VaultEntryHistoryDto
 import com.vaultpass.desktop.data.models.VaultEntryPayload
 import com.vaultpass.desktop.domain.crypto.CryptoManager
+import com.vaultpass.desktop.domain.models.CustomField
 import com.vaultpass.desktop.domain.models.VaultEntry
+import com.vaultpass.desktop.domain.models.VaultEntryHistory
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -30,7 +34,16 @@ object VaultEntryMapper {
             secret = domain.secret,
             url = domain.url,
             notes = domain.notes,
-            // History mapping deferred to CRUD phase
+            category = domain.category,
+            tags = domain.tags,
+            history = domain.history.map {
+                VaultEntryHistoryDto(
+                    previousSecret = it.previousSecret,
+                    changedAt = it.changedAt,
+                    changeReason = it.changeReason
+                )
+            },
+            customFields = domain.customFields.map { CustomFieldDto(key = it.key, value = it.value) }
         )
         
         // Step 2 & 3: Serialize and Encrypt
@@ -45,8 +58,8 @@ object VaultEntryMapper {
             createdAt = domain.createdAt,
             updatedAt = domain.updatedAt,
             isFavorite = domain.isFavorite,
-            isDeleted = false,
-            deletedAt = null,
+            isDeleted = domain.isDeleted,
+            deletedAt = domain.deletedAt,
             syncVersion = 1
         )
     }
@@ -58,27 +71,47 @@ object VaultEntryMapper {
      * 3. Maps back to Domain
      */
     fun toDomain(entity: VaultEntity, cryptoManager: CryptoManager): VaultEntry {
-        // Step 1 & 2: Decrypt and Deserialize
-        val decryptedBytes = cryptoManager.decryptData(entity.encryptedPayload)
-        val jsonString = String(decryptedBytes, Charsets.UTF_8)
-        val payload = json.decodeFromString<VaultEntryPayload>(jsonString)
-        
-        // Step 3: Map
-        return when (payload) {
-            is VaultEntryPayload.PasswordPayload -> {
-                VaultEntry(
-                    id = entity.id,
-                    title = payload.title,
-                    username = payload.username,
-                    secret = payload.secret,
-                    url = payload.url,
-                    notes = payload.notes,
-                    categoryId = null,
-                    isFavorite = entity.isFavorite,
-                    createdAt = entity.createdAt,
-                    updatedAt = entity.updatedAt
-                )
+        try {
+            val decryptedBytes = cryptoManager.decryptData(entity.encryptedPayload)
+            try {
+                val jsonString = String(decryptedBytes, Charsets.UTF_8)
+                val payload = json.decodeFromString<VaultEntryPayload>(jsonString)
+                return when (payload) {
+                    is VaultEntryPayload.PasswordPayload -> {
+                        VaultEntry(
+                            id = entity.id,
+                            title = payload.title,
+                            username = payload.username,
+                            secret = payload.secret,
+                            url = payload.url,
+                            notes = payload.notes,
+                            category = payload.category,
+                            tags = payload.tags,
+                            customFields = payload.customFields.map { CustomField(key = it.key, value = it.value) },
+                            history = payload.history.map {
+                                VaultEntryHistory(
+                                    previousSecret = it.previousSecret,
+                                    changedAt = it.changedAt,
+                                    changeReason = it.changeReason
+                                )
+                            },
+                            isFavorite = entity.isFavorite,
+                            isDeleted = entity.isDeleted,
+                            deletedAt = entity.deletedAt,
+                            createdAt = entity.createdAt,
+                            updatedAt = entity.updatedAt
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                println("[TRACE] Mapper JSON Error: ${e.message}")
+                throw e
             }
+        } catch (e: Exception) {
+            println("[TRACE] Mapper DECRYPT Error: ${e.message} | CryptoMgr: ${System.identityHashCode(cryptoManager)}")
+            throw e
         }
+        
     }
 }
+

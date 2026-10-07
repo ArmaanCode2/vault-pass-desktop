@@ -39,10 +39,23 @@ class WindowsFilePicker : FilePicker {
             showDialog(false, title, allowedExtensions, "", false)
         }
 
-    override suspend fun showSaveFileDialog(title: String, defaultFileName: String): File? =
-        withContext(Dispatchers.IO) {
-            showDialog(true, title, listOf("vpb"), defaultFileName, false)
+    override suspend fun showSaveFileDialog(
+        title: String, 
+        defaultFileName: String, 
+        allowedExtensions: List<String>
+    ): File? = withContext(Dispatchers.IO) {
+        val exts = if (allowedExtensions.isNotEmpty()) {
+            allowedExtensions.map { it.removePrefix(".") }
+        } else if (defaultFileName.contains(".")) {
+            listOf(defaultFileName.substringAfterLast("."))
+        } else {
+            listOf("vpex")
         }
+        showDialog(true, title, exts, defaultFileName, false)
+    }
+
+    suspend fun showSaveFileDialog(title: String, defaultFileName: String): File? =
+        showSaveFileDialog(title, defaultFileName, emptyList())
 
     override suspend fun showFolderPickerDialog(title: String): File? =
         withContext(Dispatchers.IO) {
@@ -50,6 +63,10 @@ class WindowsFilePicker : FilePicker {
         }
 
     private fun showDialog(isSave: Boolean, title: String, allowedExtensions: List<String>, defaultFileName: String, isFolderPicker: Boolean): File? {
+        if (!com.sun.jna.Platform.isWindows()) {
+            throw UnsupportedOperationException("Windows COM IFileDialog is only available on Windows")
+        }
+
         var fileDialog: IFileDialog? = null
         var shellItem: IShellItem? = null
 
@@ -65,7 +82,7 @@ class WindowsFilePicker : FilePicker {
             )
 
             if (COMUtils.FAILED(hrCreate)) {
-                return null
+                throw IllegalStateException("Failed to create IFileDialog instance: hr=$hrCreate")
             }
 
             fileDialog = IFileDialog(ppv.value)
@@ -85,23 +102,28 @@ class WindowsFilePicker : FilePicker {
 
             // Set Filter
             if (allowedExtensions.isNotEmpty()) {
-                // JNA handles arrays of structures automatically
                 val firstStruct = COMDLG_FILTERSPEC()
                 @Suppress("UNCHECKED_CAST")
                 val filtersArray = firstStruct.toArray(allowedExtensions.size) as Array<COMDLG_FILTERSPEC>
-                
                 allowedExtensions.forEachIndexed { index, ext ->
-                    filtersArray[index].pszName = WString("VaultPass Backup (*.$ext)")
-                    filtersArray[index].pszSpec = WString("*.$ext")
+                    val cleanExt = ext.removePrefix(".")
+                    val desc = when (cleanExt.lowercase()) {
+                        "vpex" -> "VaultPass Encrypted Export (*.$cleanExt)"
+                        "json" -> "JSON Document (*.$cleanExt)"
+                        "csv" -> "CSV Spreadsheet (*.$cleanExt)"
+                        "txt" -> "Text File (*.$cleanExt)"
+                        "vpb" -> "VaultPass Backup (*.$cleanExt)"
+                        "xml" -> "XML File (*.$cleanExt)"
+                        else -> "Files (*.$cleanExt)"
+                    }
+                    filtersArray[index].pszName = WString(desc)
+                    filtersArray[index].pszSpec = WString("*.$cleanExt")
                 }
-                
-                // Write all elements in the array to native memory
                 for (filter in filtersArray) {
                     filter.write()
                 }
-                
                 fileDialog.SetFileTypes(filtersArray.size, filtersArray[0].pointer)
-                fileDialog.SetDefaultExtension(WString(allowedExtensions.first()))
+                fileDialog.SetDefaultExtension(WString(allowedExtensions.first().removePrefix(".")))
             }
 
             // Show Dialog
@@ -122,8 +144,9 @@ class WindowsFilePicker : FilePicker {
                         Ole32.INSTANCE.CoTaskMemFree(pathPtr)
                         
                         var resultFile = File(path)
-                        if (isSave && !isFolderPicker && !resultFile.name.endsWith(".vpb", ignoreCase = true)) {
-                            resultFile = File(resultFile.parentFile, "${resultFile.name}.vpb")
+                        if (isSave && !isFolderPicker && !resultFile.name.contains(".")) {
+                            val defaultExt = allowedExtensions.firstOrNull()?.removePrefix(".") ?: "vpex"
+                            resultFile = File(resultFile.parentFile, "${resultFile.name}.$defaultExt")
                         }
                         
                         lastUsedDirectory = resultFile.parent

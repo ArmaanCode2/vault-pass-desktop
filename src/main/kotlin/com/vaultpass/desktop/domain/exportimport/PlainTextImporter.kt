@@ -3,13 +3,6 @@ package com.vaultpass.desktop.domain.exportimport
 import com.vaultpass.desktop.domain.models.VaultEntry
 import java.util.UUID
 
-data class ImportParseResult(
-    val validEntries: List<VaultEntry>,
-    val invalidCount: Int,
-    val duplicateCount: Int,
-    val totalCount: Int
-)
-
 /**
  * Parses Android-compatible Plain Text format into domain VaultEntry models.
  * Calculates valid, invalid, duplicate, and total counts.
@@ -17,6 +10,7 @@ data class ImportParseResult(
 object PlainTextImporter {
     fun parse(text: String, existingEntries: List<VaultEntry> = emptyList()): ImportParseResult {
         val validEntries = mutableListOf<VaultEntry>()
+        val duplicateKeys = mutableSetOf<String>()
         var invalidCount = 0
         var duplicateCount = 0
 
@@ -92,6 +86,7 @@ object PlainTextImporter {
                 val key = "${title.trim().lowercase()}|${username.trim().lowercase()}"
                 if (existingKeys.contains(key)) {
                     duplicateCount++
+                    duplicateKeys.add(key)
                 }
 
                 validEntries.add(
@@ -121,7 +116,8 @@ object PlainTextImporter {
             validEntries = validEntries,
             invalidCount = invalidCount,
             duplicateCount = duplicateCount,
-            totalCount = validEntries.size + invalidCount
+            totalCount = validEntries.size + invalidCount,
+            duplicateKeys = duplicateKeys
         )
     }
 }

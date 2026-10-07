@@ -1,6 +1,11 @@
 @file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 package com.vaultpass.desktop.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.pointer.PointerButton
 import androidx.compose.foundation.*
@@ -45,6 +50,7 @@ fun RecycleBinScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showEmptyConfirm by remember { mutableStateOf(false) }
+    var showBatchDeleteConfirm by remember { mutableStateOf(false) }
 
     // Clear selection if deleted/restored
     LaunchedEffect(state.recycledEntries) {
@@ -77,8 +83,13 @@ fun RecycleBinScreen(
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White
                     )
+                    val retentionDays = state.recycleBinRetentionDays
                     Text(
-                        text = "Items deleted from your vault.",
+                        text = if (retentionDays > 0) {
+                            "Items deleted from your vault. Entries older than $retentionDays days are automatically purged forever."
+                        } else {
+                            "Items deleted from your vault. Auto-delete is disabled."
+                        },
                         fontSize = 11.sp,
                         color = Color(0xFF888888)
                     )
@@ -140,7 +151,68 @@ fun RecycleBinScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (selectedEntryIds.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    color = Color(0xFF1A1A1A),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFF2E2E2E))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${selectedEntryIds.size} item(s) selected",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        val isAllSelected = state.recycledEntries.isNotEmpty() && selectedEntryIds.size == state.recycledEntries.size
+                        OutlinedButton(
+                            onClick = {
+                                selectedEntryIds = if (isAllSelected) emptySet() else state.recycledEntries.map { it.id }.toSet()
+                            },
+                            shape = RoundedCornerShape(6.dp),
+                            border = BorderStroke(1.dp, Color(0xFF3E3E3E)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFCCCCCC)),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(if (isAllSelected) "Deselect All" else "Select All", fontSize = 12.sp)
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        Button(
+                            onClick = {
+                                val count = selectedEntryIds.size
+                                viewModel.restoreSelectedEntries(selectedEntryIds.toList())
+                                selectedEntryIds = emptySet()
+                                coroutineScope.launch { snackbarHostState.showSnackbar("Restored $count item(s)") }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0EA5A1), contentColor = Color.Black),
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Restore (${selectedEntryIds.size})", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Button(
+                            onClick = { showBatchDeleteConfirm = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF242424), contentColor = Color(0xFFFF6B6B)),
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Delete Forever (${selectedEntryIds.size})", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
 
             if (state.isRecycleBinLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -167,6 +239,7 @@ fun RecycleBinScreen(
                 RecycleBinTable(
                     entries = state.recycledEntries.sortedByDescending { it.deletedAt ?: it.updatedAt },
                     selectedIds = selectedEntryIds,
+                    retentionDays = state.recycleBinRetentionDays,
                     onSelectionChange = { id ->
                         selectedEntryIds = if (id in selectedEntryIds) selectedEntryIds - id else selectedEntryIds + id
                     },
@@ -187,7 +260,7 @@ fun RecycleBinScreen(
         AlertDialog(
             onDismissRequest = { showEmptyConfirm = false },
             title = { Text("Empty Recycle Bin", color = Color.White) },
-            text = { Text("Are you sure you want to permanently delete all items in the Recycle Bin? This action cannot be undone.", color = Color(0xFFE8E8E8)) },
+            text = { Text("Are you sure you want to permanently delete all ${state.recycledEntries.size} items in the Recycle Bin? This action cannot be undone.", color = Color(0xFFE8E8E8)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -205,12 +278,38 @@ fun RecycleBinScreen(
             containerColor = Color(0xFF1A1A1A)
         )
     }
+
+    if (showBatchDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showBatchDeleteConfirm = false },
+            title = { Text("Permanently Delete Selected Items", color = Color.White) },
+            text = { Text("Are you sure you want to permanently delete ${selectedEntryIds.size} items? This cannot be undone.", color = Color(0xFFE8E8E8)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val count = selectedEntryIds.size
+                        viewModel.permanentlyDeleteSelectedEntries(selectedEntryIds.toList())
+                        selectedEntryIds = emptySet()
+                        showBatchDeleteConfirm = false
+                        coroutineScope.launch { snackbarHostState.showSnackbar("Permanently deleted $count item(s)") }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B6B), contentColor = Color.Black),
+                    shape = RoundedCornerShape(8.dp)
+                ) { Text("Delete Forever", fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBatchDeleteConfirm = false }) { Text("Cancel", color = Color(0xFF888888)) }
+            },
+            containerColor = Color(0xFF1A1A1A)
+        )
+    }
 }
 
 @Composable
 private fun RecycleBinTable(
     entries: List<VaultEntry>,
     selectedIds: Set<String>,
+    retentionDays: Int,
     onSelectionChange: (String) -> Unit,
     onRestore: (VaultEntry) -> Unit,
     onDelete: (VaultEntry) -> Unit
@@ -223,6 +322,7 @@ private fun RecycleBinTable(
             RecycleBinRow(
                 entry = entry,
                 isSelected = entry.id in selectedIds,
+                retentionDays = retentionDays,
                 onToggleSelect = { onSelectionChange(entry.id) },
                 onRestore = { onRestore(entry) },
                 onDelete = { onDelete(entry) }
@@ -235,6 +335,7 @@ private fun RecycleBinTable(
 private fun RecycleBinRow(
     entry: VaultEntry,
     isSelected: Boolean,
+    retentionDays: Int,
     onToggleSelect: () -> Unit,
     onRestore: () -> Unit,
     onDelete: () -> Unit
@@ -266,7 +367,7 @@ private fun RecycleBinRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .heightIn(min = 56.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(cardBg)
                 .border(1.dp, cardBorder, RoundedCornerShape(8.dp))
@@ -288,7 +389,7 @@ private fun RecycleBinRow(
                         }
                     }
                 }
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
@@ -322,13 +423,46 @@ private fun RecycleBinRow(
                 }
             }
 
-            Text(
-                text = if (entry.deletedAt != null) dateFormat.format(Date(entry.deletedAt)) else "Unknown",
-                modifier = Modifier.weight(1f),
-                fontSize = 12.sp,
-                color = Color(0xFF888888),
-                maxLines = 1
-            )
+            Column(
+                modifier = Modifier.weight(1.2f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = if (entry.deletedAt != null) dateFormat.format(Date(entry.deletedAt)) else "Unknown",
+                    fontSize = 12.sp,
+                    color = Color(0xFF888888),
+                    maxLines = 1
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                if (retentionDays > 0 && entry.deletedAt != null) {
+                    val daysPassed = ((System.currentTimeMillis() - entry.deletedAt) / (1000L * 60 * 60 * 24)).toInt()
+                    val daysLeft = maxOf(0, retentionDays - daysPassed)
+                    val (badgeText, badgeBg, badgeFg) = when {
+                        daysLeft == 0 -> Triple("Expires today", Color(0xFFFF6B6B).copy(alpha = 0.2f), Color(0xFFFF6B6B))
+                        daysLeft == 1 -> Triple("Expires tomorrow", Color(0xFFFFB900).copy(alpha = 0.2f), Color(0xFFFFB900))
+                        else -> Triple("Expires in $daysLeft days", Color(0xFF242424), Color(0xFF888888))
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(badgeBg)
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = badgeText,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = badgeFg
+                        )
+                    }
+                } else if (retentionDays == 0) {
+                    Text(
+                        text = "No auto-expiry",
+                        fontSize = 10.sp,
+                        color = Color(0xFF666666)
+                    )
+                }
+            }
 
             // Actions: Inactive background, teal restore, red delete
             Row(modifier = Modifier.width(96.dp), horizontalArrangement = Arrangement.End) {

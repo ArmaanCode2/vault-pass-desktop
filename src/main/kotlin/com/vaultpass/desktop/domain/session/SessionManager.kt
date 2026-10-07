@@ -22,6 +22,7 @@ interface SessionManager {
     /**
      * Transitions to UNLOCKING, delegates the actual verification logic,
      * and finally transitions to UNLOCKED if successful.
+     * Throws [UnlockInterruptedException] when the vault was locked or closed meanwhile.
      */
     suspend fun unlock(password: String): Boolean
 
@@ -50,4 +51,17 @@ interface SessionManager {
      * Routes the application into setup mode.
      */
     fun beginSetup()
+
+    /**
+     * Called when the user toggles the 'Require Master Password on Startup' setting.
+     * Persists or clears the protected DPAPI session based on the setting.
+     */
+    suspend fun onRequireMasterPasswordOnStartupChanged(required: Boolean)
 }
+
+/**
+ * An unlock (or the opening that ends vault creation) gave way to a lock or close that came in
+ * while it ran. The vault is Locked; nothing was wrong with the password. [message] says what to do.
+ */
+class UnlockInterruptedException(message: String) : Exception(message)
+

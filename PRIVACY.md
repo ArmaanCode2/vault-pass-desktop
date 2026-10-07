@@ -1,11 +1,11 @@
 # Privacy Policy for VaultPass Desktop
 
-**Effective Date:** September 10, 2026
+**Effective Date:** October 3, 2026
 
 ## 1. Introduction
 Welcome to VaultPass Desktop. We respect your privacy and are committed to protecting it. This Privacy Policy explains our practices regarding data privacy, local storage, and network communication when you use the VaultPass Desktop application ("the Application").
 
-VaultPass Desktop is engineered from the ground up as a local-first, zero-cloud password manager. We believe your private credentials belong exclusively to you. The Application operates entirely on your personal machine and does not require a user account, cloud subscription, or continuous internet connection to function.
+VaultPass Desktop is engineered from the ground up as a local-first, zero-cloud password manager. We believe your private credentials belong exclusively to you. The Application operates on your personal machine and does not require a user account, cloud subscription, or continuous internet connection to function. Its only network features are an optional update check and an optional sync with VaultPass for Android on your local network (see Section 5).
 
 ---
 
@@ -19,10 +19,10 @@ VaultPass Desktop allows you to manage sensitive information, including account 
 ---
 
 ## 3. Local Device Storage
-All data managed by VaultPass Desktop is stored exclusively on your local computer storage.
+All data managed by VaultPass Desktop is stored on your computer, and on your own phone if you choose to sync with VaultPass for Android.
 
 * **No Developer Cloud Infrastructure:** We do not operate cloud databases, sync servers, or proprietary relay backends. Your data never touches any server owned or operated by us.
-* **Storage Location:** All encrypted vault databases, encryption metadata, and application configurations reside locally on your computer (within your chosen installation folder's `data` directory or your user application directory).
+* **Storage Location:** All encrypted vault databases, encryption metadata, and application configurations reside locally on your computer (within your chosen installation folder's `data` directory or your user application directory). The path of that data folder is also kept in the Windows registry under `HKEY_CURRENT_USER\Software\VaultPass` (`DataDir`), so the Application and its installer can find your vault again. Downloaded updates are kept in the `updates` folder inside the data folder.
 * **Zero Telemetry or Crash Reports:** Crash traces and operational logs remain local to your machine and are never transmitted automatically to us or any third party.
 
 ---
@@ -30,7 +30,7 @@ All data managed by VaultPass Desktop is stored exclusively on your local comput
 ## 4. Cryptography and Security Architecture
 All vault records are secured using industry-standard cryptography before being written to disk.
 
-* **Master Password:** Your data is encrypted using keys derived from your Master Password via Argon2id. Your Master Password is never transmitted off your machine and is never stored in plain text.
+* **Master Password:** Your data is encrypted using keys derived from your Master Password with PBKDF2-HMAC-SHA256 (300,000 iterations). Your Master Password is never transmitted off your machine and is never stored in plain text.
 * **Session Protection:** Sensitive cryptographic keys in system memory are protected using Windows Data Protection API (DPAPI) and are zeroed out when the vault is locked.
 * **No Recovery Backdoors:** Because encryption occurs locally and we have zero knowledge of your Master Password, **we cannot reset your password or recover your data if you lose your Master Password.**
 * **Brute-Force Protection:** The Application incorporates rate-limiting cooldown timers to resist local brute-force attempts.
@@ -43,15 +43,19 @@ VaultPass Desktop maintains a strict separation between your local encrypted vau
 ### A. Software Update Checks (GitHub Releases)
 To protect users with timely security patches and feature updates, VaultPass Desktop includes an optional software update checker.
 * **Public Endpoint Queried:** When checking for updates, the Application sends a standard HTTPS `GET` request to GitHub's public API (`https://api.github.com/repos/ArmaanCode2/vault-pass-desktop/releases/latest`) and, if approved by the user, downloads updated installation packages from GitHub Releases.
-* **What Data is Sent:** In accordance with standard Internet protocol communication, this request transmits only generic technical network headers (your IP address as visible to GitHub, and a standard User-Agent header such as `VaultPass-Desktop/1.0.0`).
+* **What Data is Sent:** In accordance with standard Internet protocol communication, this request transmits only generic technical network headers (your IP address as visible to GitHub, and a standard User-Agent header such as `VaultPass-Desktop/1.0.2`).
 * **What Data is NEVER Sent:** Vault records, master passwords, encryption keys, usernames, URLs, machine identifiers, hardware fingerprints, and usage statistics are **never** included in update requests.
 * **Third-Party Infrastructure:** Update binaries and release metadata are hosted on GitHub (Microsoft Corporation) and are subject to the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement). VaultPass operates no intermediate proxy or custom distribution server.
-* **User Control & Air-Gapped Operation:** Automatic update checks can be toggled off at any time under **Settings -> About**. VaultPass Desktop operates with complete feature parity in air-gapped or firewall-blocked environments. If network connectivity is unavailable, the update check silently ignores the connection without affecting vault operations.
+* **User Control & Air-Gapped Operation:** The update check when the Application opens is off for new installs. You can turn it on or off at any time under **Settings -> About** ("Check for updates when VaultPass opens"); installs from before this setting existed keep the choice they had. You can also check by hand there. VaultPass Desktop operates with complete feature parity in air-gapped or firewall-blocked environments. If network connectivity is unavailable, the update check silently ignores the connection without affecting vault operations.
 
 ### B. Local Network Synchronization (LAN Sync)
-VaultPass Desktop can synchronize credentials directly with the **VaultPass Android** companion app.
-* **Local Subnet Only:** Synchronization occurs directly between devices over your local area network (Wi-Fi) using end-to-end encrypted sockets.
-* **Zero Cloud Relays:** Sync data is never transmitted over the public internet, external proxies, or third-party relay servers. Both devices must reside on the same local subnet to communicate.
+VaultPass Desktop can synchronize credentials directly with the **VaultPass Android** companion app. This is optional and off until you pair a phone.
+* **Direct and local only:** The computer and the phone connect to each other over your local network. Sync data never goes over the public internet and never passes through external proxies, relay servers or any server of ours.
+* **Pairing:** You pair a phone by scanning a QR code shown by the Application. The code holds a one-time secret that is never sent over the network, and you approve the phone on this computer before the pairing is saved.
+* **When the Application uses the network:** It listens for your phone only while the Sync page is open or a pairing QR code is shown, on TCP port 53853 and UDP port 53852. If you allow it, the Application adds Windows Firewall rules for these two ports, limited to Private networks; this needs administrator permission.
+* **What is sent:** Your vault entries and deleted-entry records, only to the phone you paired, and only during a sync that was approved on the other device. Every message is encrypted end to end with AES-256-GCM, using keys from a fresh P-256 key exchange that is authenticated by the key created when you paired. The pairing key itself is never sent.
+* **Finding your phone:** While the Sync page is open, the Application broadcasts a small announcement on your local network every few seconds so your paired phone can find it. It contains no device name, device identifier or vault data: only a random number, a timestamp, a port number and a short code that only your paired phone can recognise. As with any network traffic, other devices on the network can see your computer's local IP address as the sender.
+* **What is stored on this computer:** For each paired phone, its name and identifier, its last known local IP address and port, when you paired, when you last synced, and the pairing key, which is encrypted with your vault's key. The Application also keeps a random identifier for this computer in the `sync-device-id` file in its data folder. You can remove a pairing at any time in Settings.
 
 ---
 
@@ -77,8 +81,8 @@ When you copy a username, password, or note to your system clipboard:
 ---
 
 ## 9. Data Retention and Deletion
-Because your data is stored exclusively on your computer, you have complete control over data retention and deletion.
-* To delete all stored credentials and configuration files, delete the `data` directory in your VaultPass installation folder or uninstall the application and remove the data files.
+Because your data is stored only on your own devices, you have complete control over data retention and deletion. If you synced with VaultPass for Android, your phone keeps its own copy until you delete it there.
+* To delete all stored credentials and configuration files, delete the `data` directory in your VaultPass installation folder or uninstall the application and remove the data files. The registry value `HKEY_CURRENT_USER\Software\VaultPass\DataDir` holds only the folder path; you can delete it too.
 * Soft-deleted items in the Application's Recycle Bin are automatically purged after 7 days, or can be permanently deleted manually at any time.
 
 ---

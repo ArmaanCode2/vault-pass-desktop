@@ -14,6 +14,15 @@ data class VaultEntryHistoryDto(
 )
 
 /**
+ * A user-defined key/value pair embedded in the payload.
+ */
+@Serializable
+data class CustomFieldDto(
+    val key: String,
+    val value: String
+)
+
+/**
  * Polymorphic serialization wrapper for encrypted vault payloads.
  * This class abstracts the sensitive data away from the SQLite database.
  */
@@ -28,8 +37,11 @@ sealed class VaultEntryPayload {
         val secret: String,
         val url: String = "",
         val notes: String = "",
+        val category: String? = null,
+        val tags: List<String> = emptyList(),
         val isArchived: Boolean = false,
-        val history: List<VaultEntryHistoryDto> = emptyList()
+        val history: List<VaultEntryHistoryDto> = emptyList(),
+        val customFields: List<CustomFieldDto> = emptyList()
     ) : VaultEntryPayload()
     
     // Future expansion: SecureNotePayload, CreditCardPayload, IdentityPayload

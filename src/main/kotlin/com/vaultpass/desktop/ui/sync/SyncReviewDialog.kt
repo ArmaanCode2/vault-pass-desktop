@@ -30,6 +30,8 @@ import com.vaultpass.desktop.domain.sync.diff.EntryDiffItem
 import com.vaultpass.desktop.domain.sync.diff.EntrySyncCategory
 import com.vaultpass.desktop.domain.sync.diff.FieldChangeType
 import com.vaultpass.desktop.ui.viewmodels.SyncViewModel
+import com.vaultpass.synccore.EntryLimits
+import com.vaultpass.synccore.ItemOutcome
 
 @Composable
 fun SyncReviewDialog(
@@ -45,10 +47,9 @@ fun SyncReviewDialog(
 
     val result = diffResult!!
     val items = result.diffItems
-    val allSelected = items.isNotEmpty() && items.all { it.isSelectedForSync }
-    val mergeCandidateCount = items.count {
-        it.isSelectedForSync && (it.category == EntrySyncCategory.NEW_REMOTE || it.category == EntrySyncCategory.MODIFIED || it.category == EntrySyncCategory.DELETED_LOCAL)
-    }
+    val peerName = syncingDevice?.deviceName ?: "the other device"
+    val plannedCount = result.plannedCount
+    val unansweredCount = result.unansweredCount
 
     Dialog(
         onDismissRequest = { showCancelConfirm = true },
@@ -75,7 +76,7 @@ fun SyncReviewDialog(
                 ) {
                     Column {
                         Text(
-                            text = "Review Changes — ${syncingDevice?.deviceName ?: "Mobile Device"}",
+                            text = "Review Changes — $peerName",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -84,9 +85,14 @@ fun SyncReviewDialog(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             // Summary Badges
                             BadgePill(
-                                label = "${result.newRemoteCount} New",
+                                label = "${result.newRemoteCount} New on $peerName",
                                 backgroundColor = Color(0xFF143823),
                                 textColor = Color(0xFF4ADE80)
+                            )
+                            BadgePill(
+                                label = "${result.newLocalCount} Only on this PC",
+                                backgroundColor = Color(0xFF1F2937),
+                                textColor = Color(0xFF93C5FD)
                             )
                             BadgePill(
                                 label = "${result.modifiedCount} Modified",
@@ -98,6 +104,20 @@ fun SyncReviewDialog(
                                 backgroundColor = Color(0xFF262626),
                                 textColor = Color(0xFFA3A3A3)
                             )
+                            if (result.conflictCount > 0) {
+                                BadgePill(
+                                    label = "${result.conflictCount} Changed on Both",
+                                    backgroundColor = Color(0xFF3B1F3B),
+                                    textColor = Color(0xFFF0ABFC)
+                                )
+                            }
+                            if (result.deletedRemoteCount > 0) {
+                                BadgePill(
+                                    label = "${result.deletedRemoteCount} Deleted on $peerName",
+                                    backgroundColor = Color(0xFF381414),
+                                    textColor = Color(0xFFF87171)
+                                )
+                            }
                             if (result.deletedLocalCount > 0) {
                                 BadgePill(
                                     label = "${result.deletedLocalCount} Deleted Locally",
@@ -125,36 +145,28 @@ fun SyncReviewDialog(
 
                 HorizontalDivider(color = Color(0xFF262626))
 
-                // 2. Selection Control Bar
+                // 2. What the merge does, and what still needs an answer
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color(0xFF171717))
-                        .padding(horizontal = 24.dp, vertical = 10.dp),
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(
-                        checked = allSelected,
-                        onCheckedChange = { checked -> syncViewModel.toggleSelectAll(checked) },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = Color(0xFF0EA5A1),
-                            uncheckedColor = Color(0xFF666666),
-                            checkmarkColor = Color.Black
-                        )
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (allSelected) "Deselect All Entries" else "Select All Entries",
+                        text = "Choose what happens to each entry. The result is applied on this PC and on $peerName.",
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFFCCCCCC)
+                        color = Color(0xFFCCCCCC),
+                        modifier = Modifier.weight(1f)
                     )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        text = "${items.count { it.isSelectedForSync }} of ${items.size} selected",
-                        fontSize = 12.sp,
-                        color = Color(0xFF888888)
-                    )
+                    if (unansweredCount > 0) {
+                        Spacer(modifier = Modifier.width(12.dp))
+                        BadgePill(
+                            label = "$unansweredCount to decide",
+                            backgroundColor = Color(0xFF3B1F3B),
+                            textColor = Color(0xFFF0ABFC)
+                        )
+                    }
                 }
 
                 HorizontalDivider(color = Color(0xFF262626))
@@ -170,18 +182,12 @@ fun SyncReviewDialog(
                     items(items, key = { it.syncKey }) { item ->
                         DiffEntryCard(
                             item = item,
-                            onToggleSelect = { isChecked ->
-                                syncViewModel.toggleEntrySelection(item.syncKey, isChecked)
-                            },
+                            peerName = peerName,
+                            onChoose = { outcome -> syncViewModel.setOutcome(item.syncKey, outcome) },
                             onUpdateField = { field, value ->
                                 syncViewModel.updateEntryFieldOverride(item.syncKey, field, value)
                             },
-                            onUsePhoneValue = {
-                                syncViewModel.applyRemoteValue(item.syncKey)
-                            },
-                            onKeepLocalValue = {
-                                syncViewModel.applyLocalValue(item.syncKey)
-                            }
+                            onDiscardEdits = { syncViewModel.discardEdits(item.syncKey) }
                         )
                     }
                 }
@@ -205,55 +211,39 @@ fun SyncReviewDialog(
                         Text("Cancel")
                     }
 
-                    if (mergeCandidateCount == 0) {
-                        Button(
-                            onClick = {
-                                syncViewModel.confirmAndMerge { count ->
-                                    onSuccessMerge(count)
-                                }
-                                onDismiss()
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF10B981),
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.height(42.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (unansweredCount > 0) {
                             Text(
-                                text = "All Entries Up-To-Date (Finish)",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
+                                text = "Choose a version for every entry changed on both devices",
+                                fontSize = 12.sp,
+                                color = Color(0xFFF0ABFC)
                             )
+                            Spacer(modifier = Modifier.width(12.dp))
                         }
-                    } else {
+                        // The only way to finish a review. The view model closes the dialog, so
+                        // no cancel can race the merge.
                         Button(
-                            onClick = {
-                                syncViewModel.confirmAndMerge { count ->
-                                    onSuccessMerge(count)
-                                }
-                            },
+                            onClick = { syncViewModel.confirmAndMerge(onSuccessMerge) },
+                            enabled = unansweredCount == 0,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF0EA5A1),
-                                contentColor = Color.Black
+                                containerColor = if (plannedCount == 0) Color(0xFF10B981) else Color(0xFF0EA5A1),
+                                contentColor = if (plannedCount == 0) Color.White else Color.Black
                             ),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.height(42.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Check,
+                                imageVector = if (plannedCount == 0) Icons.Default.CheckCircle else Icons.Default.Check,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Apply Sync (Merge $mergeCandidateCount Entries)",
+                                text = if (plannedCount == 0) {
+                                    "Devices are up to date (Finish)"
+                                } else {
+                                    "Apply to both devices ($plannedCount)"
+                                },
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -271,7 +261,7 @@ fun SyncReviewDialog(
             title = { Text("Cancel Synchronization?", color = Color.White, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    "Cancel synchronization? Any unsaved edits will be discarded.",
+                    "Cancel synchronization? Nothing will be changed on either device.",
                     color = Color(0xFFCCCCCC),
                     fontSize = 14.sp
                 )
@@ -280,7 +270,6 @@ fun SyncReviewDialog(
                 Button(
                     onClick = {
                         showCancelConfirm = false
-                        syncViewModel.cancelSync()
                         onDismiss()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF4D4F), contentColor = Color.White)
@@ -299,28 +288,69 @@ fun SyncReviewDialog(
     }
 }
 
+/** How the review names each outcome. */
+private fun outcomeLabel(outcome: ItemOutcome, peerName: String): String = when (outcome) {
+    ItemOutcome.USE_REMOTE -> "Use $peerName's version"
+    ItemOutcome.USE_LOCAL -> "Keep this device's version"
+    ItemOutcome.DELETE_BOTH -> "Delete on both"
+    ItemOutcome.SKIP -> "Leave unchanged"
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OutcomeChooser(item: EntryDiffItem, peerName: String, onChoose: (ItemOutcome) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        item.choices.forEach { outcome ->
+            // An unanswered conflict shows no choice as picked: the user must pick one.
+            val selected = !item.isUnanswered && item.outcome == outcome
+            FilterChip(
+                selected = selected,
+                onClick = { onChoose(outcome) },
+                label = { Text(outcomeLabel(outcome, peerName), fontSize = 12.sp) },
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = Color(0xFF1E1E1E),
+                    labelColor = Color(0xFFCCCCCC),
+                    selectedContainerColor = Color(0xFF0E3B3A),
+                    selectedLabelColor = Color(0xFF5EEAD4)
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = selected,
+                    borderColor = if (item.isUnanswered) Color(0xFF7E3A7E) else Color(0xFF333333),
+                    selectedBorderColor = Color(0xFF0EA5A1)
+                )
+            )
+        }
+    }
+}
+
 @Composable
 private fun DiffEntryCard(
     item: EntryDiffItem,
-    onToggleSelect: (Boolean) -> Unit,
+    peerName: String,
+    onChoose: (ItemOutcome) -> Unit,
     onUpdateField: (String, String) -> Unit,
-    onUsePhoneValue: () -> Unit,
-    onKeepLocalValue: () -> Unit
+    onDiscardEdits: () -> Unit
 ) {
-    var isExpanded by remember { mutableStateOf(item.category == EntrySyncCategory.MODIFIED) }
+    var isExpanded by remember {
+        mutableStateOf(item.category == EntrySyncCategory.MODIFIED || item.category == EntrySyncCategory.CONFLICT)
+    }
     var showPassword by remember { mutableStateOf(false) }
 
-    val displayEntry = item.editedEntry ?: item.remoteEntry ?: item.localEntry
+    val displayEntry = item.editedEntry ?: item.chosenEntry
     val title = displayEntry?.title ?: item.syncKey
     val username = displayEntry?.username ?: ""
     val category = displayEntry?.category ?: "Login"
+    val editable = item.isEditable
 
     val (badgeText, badgeBg, badgeFg) = when (item.category) {
-        EntrySyncCategory.NEW_REMOTE -> Triple("New from Phone", Color(0xFF143823), Color(0xFF4ADE80))
+        EntrySyncCategory.NEW_REMOTE -> Triple("New on $peerName", Color(0xFF143823), Color(0xFF4ADE80))
         EntrySyncCategory.MODIFIED -> Triple("Modified", Color(0xFF3B2F10), Color(0xFFFBBF24))
-        EntrySyncCategory.NEW_LOCAL -> Triple("Local Only", Color(0xFF1F2937), Color(0xFF93C5FD))
+        EntrySyncCategory.NEW_LOCAL -> Triple("Only on this PC", Color(0xFF1F2937), Color(0xFF93C5FD))
         EntrySyncCategory.UNCHANGED -> Triple("Unchanged", Color(0xFF262626), Color(0xFFA3A3A3))
-        EntrySyncCategory.DELETED_LOCAL -> Triple("Deleted Locally", Color(0xFF381414), Color(0xFFF87171))
+        EntrySyncCategory.CONFLICT -> Triple("Changed on both devices", Color(0xFF3B1F3B), Color(0xFFF0ABFC))
+        EntrySyncCategory.DELETED_REMOTE -> Triple("Deleted on $peerName", Color(0xFF381414), Color(0xFFF87171))
+        EntrySyncCategory.DELETED_LOCAL -> Triple("Deleted on this device", Color(0xFF381414), Color(0xFFF87171))
     }
 
     Card(
@@ -328,10 +358,13 @@ private fun DiffEntryCard(
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1C)),
         border = BorderStroke(
-            1.dp,
-            when (item.category) {
-                EntrySyncCategory.MODIFIED -> Color(0xFF423714)
-                EntrySyncCategory.DELETED_LOCAL -> Color(0xFF4C1D1D)
+            if (item.isUnanswered) 2.dp else 1.dp,
+            when {
+                item.isUnanswered -> Color(0xFFC026D3)
+                item.category == EntrySyncCategory.MODIFIED -> Color(0xFF423714)
+                item.category == EntrySyncCategory.CONFLICT -> Color(0xFF4A2A4A)
+                item.category == EntrySyncCategory.DELETED_LOCAL ||
+                    item.category == EntrySyncCategory.DELETED_REMOTE -> Color(0xFF4C1D1D)
                 else -> Color(0xFF2A2A2A)
             }
         )
@@ -345,18 +378,6 @@ private fun DiffEntryCard(
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(
-                    checked = item.isSelectedForSync,
-                    onCheckedChange = onToggleSelect,
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = Color(0xFF0EA5A1),
-                        uncheckedColor = Color(0xFF666666),
-                        checkmarkColor = Color.Black
-                    )
-                )
-
-                Spacer(modifier = Modifier.width(10.dp))
-
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -385,6 +406,14 @@ private fun DiffEntryCard(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                    if (item.isUnanswered) {
+                        Text(
+                            text = "Changed on both devices: choose which version to keep",
+                            fontSize = 11.sp,
+                            color = Color(0xFFF0ABFC),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -401,6 +430,22 @@ private fun DiffEntryCard(
                 )
             }
 
+            // What happens to this entry on both devices
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 14.dp, end = 14.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutcomeChooser(item = item, peerName = peerName, onChoose = onChoose)
+                Spacer(modifier = Modifier.weight(1f))
+                if (item.editedEntry != null) {
+                    TextButton(onClick = onDiscardEdits) {
+                        Text("Discard edits", fontSize = 12.sp, color = Color(0xFF999999))
+                    }
+                }
+            }
+
             // Expanded Field Inspector & Editor
             AnimatedVisibility(visible = isExpanded) {
                 Column(
@@ -412,35 +457,20 @@ private fun DiffEntryCard(
                 ) {
                     HorizontalDivider(color = Color(0xFF262626))
 
-                    // Quick Resolution Buttons for MODIFIED items
-                    if (item.category == EntrySyncCategory.MODIFIED) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Quick Resolve:", fontSize = 12.sp, color = Color(0xFF888888))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            OutlinedButton(
-                                onClick = onUsePhoneValue,
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.height(28.dp),
-                                border = BorderStroke(1.dp, Color(0xFF333333)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF4ADE80))
-                            ) {
-                                Text("Use Phone Value", fontSize = 11.sp)
-                            }
-                            Spacer(modifier = Modifier.width(6.dp))
-                            OutlinedButton(
-                                onClick = onKeepLocalValue,
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.height(28.dp),
-                                border = BorderStroke(1.dp, Color(0xFF333333)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF93C5FD))
-                            ) {
-                                Text("Keep PC Value", fontSize = 11.sp)
-                            }
-                        }
+                    if (item.category == EntrySyncCategory.DELETED_REMOTE) {
+                        Text(
+                            text = "$peerName deleted this entry. Delete it on both devices, keep this PC's copy " +
+                                "on both, or leave it unchanged.",
+                            fontSize = 12.sp,
+                            color = Color(0xFFCCCCCC)
+                        )
+                    }
+                    if (!editable) {
+                        Text(
+                            text = "Choose a version to keep to edit it here.",
+                            fontSize = 11.sp,
+                            color = Color(0xFF777777)
+                        )
                     }
 
                     // Field: Title
@@ -450,6 +480,9 @@ private fun DiffEntryCard(
                         remoteValue = item.remoteEntry?.title ?: "",
                         currentValue = displayEntry?.title ?: "",
                         isModified = item.localEntry?.title != item.remoteEntry?.title && item.localEntry != null && item.remoteEntry != null,
+                        peerName = peerName,
+                        enabled = editable,
+                        limit = EntryLimits.TITLE,
                         onValueChange = { onUpdateField("title", it) }
                     )
 
@@ -460,6 +493,9 @@ private fun DiffEntryCard(
                         remoteValue = item.remoteEntry?.username ?: "",
                         currentValue = displayEntry?.username ?: "",
                         isModified = item.localEntry?.username != item.remoteEntry?.username && item.localEntry != null && item.remoteEntry != null,
+                        peerName = peerName,
+                        enabled = editable,
+                        limit = EntryLimits.USERNAME,
                         onValueChange = { onUpdateField("username", it) }
                     )
 
@@ -470,6 +506,9 @@ private fun DiffEntryCard(
                         remoteValue = item.remoteEntry?.secret ?: "",
                         currentValue = displayEntry?.secret ?: "",
                         isModified = item.localEntry?.secret != item.remoteEntry?.secret && item.localEntry != null && item.remoteEntry != null,
+                        peerName = peerName,
+                        enabled = editable,
+                        limit = EntryLimits.PASSWORD,
                         isPassword = true,
                         showPassword = showPassword,
                         onTogglePassword = { showPassword = !showPassword },
@@ -483,6 +522,9 @@ private fun DiffEntryCard(
                         remoteValue = item.remoteEntry?.url ?: "",
                         currentValue = displayEntry?.url ?: "",
                         isModified = item.localEntry?.url != item.remoteEntry?.url && item.localEntry != null && item.remoteEntry != null,
+                        peerName = peerName,
+                        enabled = editable,
+                        limit = EntryLimits.WEBSITE,
                         onValueChange = { onUpdateField("url", it) }
                     )
 
@@ -493,6 +535,9 @@ private fun DiffEntryCard(
                         remoteValue = item.remoteEntry?.notes ?: "",
                         currentValue = displayEntry?.notes ?: "",
                         isModified = item.localEntry?.notes != item.remoteEntry?.notes && item.localEntry != null && item.remoteEntry != null,
+                        peerName = peerName,
+                        enabled = editable,
+                        limit = EntryLimits.NOTES,
                         isMultiLine = true,
                         onValueChange = { onUpdateField("notes", it) }
                     )
@@ -506,19 +551,40 @@ private fun DiffEntryCard(
                                 remoteValue = item.remoteEntry?.category ?: "",
                                 currentValue = displayEntry?.category ?: "",
                                 isModified = (item.localEntry?.category ?: "") != (item.remoteEntry?.category ?: "") && item.localEntry != null && item.remoteEntry != null,
+                                peerName = peerName,
+                                enabled = editable,
                                 onValueChange = { onUpdateField("category", it) }
                             )
                         }
                         Box(modifier = Modifier.weight(1f)) {
+                            val tags = displayEntry?.tags.orEmpty()
                             EditableDiffRow(
                                 label = "Tags",
                                 localValue = item.localEntry?.tags?.joinToString(", ") ?: "",
                                 remoteValue = item.remoteEntry?.tags?.joinToString(", ") ?: "",
-                                currentValue = displayEntry?.tags?.joinToString(", ") ?: "",
+                                currentValue = tags.joinToString(", "),
                                 isModified = item.localEntry?.tags != item.remoteEntry?.tags && item.localEntry != null && item.remoteEntry != null,
+                                peerName = peerName,
+                                enabled = editable,
+                                error = when {
+                                    tags.size > EntryLimits.MAX_TAGS -> "Max ${EntryLimits.MAX_TAGS} tags"
+                                    tags.any { it.length > EntryLimits.TAG } -> "Each tag: ${EntryLimits.tooLong(EntryLimits.TAG)}"
+                                    else -> null
+                                },
                                 onValueChange = { onUpdateField("tags", it) }
                             )
                         }
+                    }
+
+                    CustomFieldsDiffRow(item = item, peerName = peerName, showValues = showPassword, onToggleValues = { showPassword = !showPassword })
+
+                    val favoriteDiff = item.fieldDiffs.find { it.fieldName == "Favorite" }
+                    if (favoriteDiff != null && favoriteDiff.changeType == FieldChangeType.MODIFIED) {
+                        Text(
+                            text = "Favorite • Modified — This PC: ${favoriteDiff.localValue}   $peerName: ${favoriteDiff.remoteValue}",
+                            fontSize = 12.sp,
+                            color = Color(0xFFFBBF24)
+                        )
                     }
                 }
             }
@@ -533,6 +599,10 @@ private fun EditableDiffRow(
     remoteValue: String,
     currentValue: String,
     isModified: Boolean,
+    peerName: String,
+    enabled: Boolean = true,
+    limit: Int? = null,
+    error: String? = null,
     isPassword: Boolean = false,
     showPassword: Boolean = false,
     onTogglePassword: (() -> Unit)? = null,
@@ -586,7 +656,7 @@ private fun EditableDiffRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Local: ${maskIfPassword(localValue, isPassword, showPassword)}",
+                    text = "This PC: ${maskIfPassword(localValue, isPassword, showPassword)}",
                     fontSize = 11.sp,
                     color = Color(0xFF93C5FD),
                     maxLines = 1,
@@ -594,7 +664,7 @@ private fun EditableDiffRow(
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = "Remote: ${maskIfPassword(remoteValue, isPassword, showPassword)}",
+                    text = "$peerName: ${maskIfPassword(remoteValue, isPassword, showPassword)}",
                     fontSize = 11.sp,
                     color = Color(0xFF4ADE80),
                     maxLines = 1,
@@ -605,9 +675,13 @@ private fun EditableDiffRow(
         }
 
         // Editable input for user fine-tuning
+        val fieldError = error ?: limit?.takeIf { currentValue.length > it }?.let { EntryLimits.tooLong(it) }
         OutlinedTextField(
             value = currentValue,
             onValueChange = onValueChange,
+            enabled = enabled,
+            isError = fieldError != null,
+            supportingText = fieldError?.let { { Text(it) } },
             singleLine = !isMultiLine,
             maxLines = if (isMultiLine) 3 else 1,
             visualTransformation = if (isPassword && !showPassword) PasswordVisualTransformation() else VisualTransformation.None,
@@ -618,10 +692,81 @@ private fun EditableDiffRow(
                 focusedBorderColor = if (isModified) Color(0xFFFBBF24) else Color(0xFF0EA5A1),
                 unfocusedBorderColor = if (isModified) Color(0xFF66551B) else Color(0xFF2C2C2C),
                 focusedTextColor = Color.White,
-                unfocusedTextColor = Color(0xFFE0E0E0)
+                unfocusedTextColor = Color(0xFFE0E0E0),
+                disabledContainerColor = Color(0xFF1A1A1A),
+                disabledBorderColor = Color(0xFF262626),
+                disabledTextColor = Color(0xFF999999)
             ),
             shape = RoundedCornerShape(8.dp)
         )
+    }
+}
+
+/** Read-only comparison of the custom fields on each side; values are masked like passwords. */
+@Composable
+private fun CustomFieldsDiffRow(item: EntryDiffItem, peerName: String, showValues: Boolean, onToggleValues: () -> Unit) {
+    val local = item.localEntry?.customFields.orEmpty()
+    val remote = item.remoteEntry?.customFields.orEmpty()
+    if (local.isEmpty() && remote.isEmpty()) return
+    val isModified = item.fieldDiffs.find { it.fieldName == "Custom Fields" }?.changeType == FieldChangeType.MODIFIED
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Custom Fields",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isModified) Color(0xFFFBBF24) else Color(0xFFAAAAAA)
+                )
+                if (isModified) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "• Modified", fontSize = 10.sp, color = Color(0xFFFBBF24), fontWeight = FontWeight.Medium)
+                }
+            }
+            IconButton(onClick = onToggleValues, modifier = Modifier.size(24.dp)) {
+                Icon(
+                    imageVector = if (showValues) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = "Toggle Visibility",
+                    tint = Color(0xFF888888),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                Triple("This PC", local.takeIf { item.localEntry != null }, Color(0xFF93C5FD)),
+                Triple(peerName, remote.takeIf { item.remoteEntry != null }, Color(0xFF4ADE80))
+            ).forEach { (side, fields, color) ->
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(Color(0xFF1E1E1E), RoundedCornerShape(8.dp))
+                        .border(1.dp, if (isModified) Color(0xFF66551B) else Color(0xFF2C2C2C), RoundedCornerShape(8.dp))
+                        .padding(10.dp)
+                ) {
+                    Text(side, fontSize = 11.sp, color = color, fontWeight = FontWeight.SemiBold)
+                    when {
+                        fields == null -> Text("—", fontSize = 12.sp, color = Color(0xFF777777))
+                        fields.isEmpty() -> Text("(none)", fontSize = 12.sp, color = Color(0xFF777777))
+                        else -> fields.forEach { field ->
+                            Text(
+                                text = "${field.key}: ${maskIfPassword(field.value, true, showValues)}",
+                                fontSize = 12.sp,
+                                color = Color(0xFFE0E0E0),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

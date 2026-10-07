@@ -51,4 +51,17 @@ interface CryptoManager {
      */
     @Throws(CryptoException::class)
     fun decryptData(ciphertext: ByteArray): ByteArray
+
+    /**
+     * Decrypts an external payload statelessly without affecting the active session DEK.
+     * Useful for importing backups without corrupting the active vault memory.
+     */
+    @Throws(CryptoException::class)
+    fun decryptExternalPayload(
+        ciphertext: ByteArray,
+        password: SecureCharArray,
+        kdfConfig: KdfConfig,
+        encryptionConfig: EncryptionConfig
+    ): CryptoResult<ByteArray>
+
 }

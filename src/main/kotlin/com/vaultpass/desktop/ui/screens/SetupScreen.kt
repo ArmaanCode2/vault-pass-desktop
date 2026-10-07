@@ -1,12 +1,12 @@
 package com.vaultpass.desktop.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import com.vaultpass.desktop.ui.theme.LocalVaultPassExtendedColors
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,11 +18,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.*
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.vaultpass.desktop.ui.components.GlassSurface
+import kotlinx.coroutines.launch
 
 @Composable
 fun SetupScreen(
@@ -36,25 +44,54 @@ fun SetupScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val focusRequester = remember { FocusRequester() }
+    val shakeOffset = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
 
-    val submitAction = {
+    val shakeError = { msg: String ->
+        errorMessage = msg
+        coroutineScope.launch {
+            shakeOffset.animateTo(
+                targetValue = 0f,
+                animationSpec = keyframes {
+                    durationMillis = 400
+                    10f at 50
+                    -10f at 150
+                    10f at 250
+                    -10f at 350
+                    0f at 400
+                }
+            )
+        }
+    }
+
+    val submitAction: () -> Unit = {
         errorMessage = null
         if (password.isBlank()) {
-            errorMessage = "Master Password cannot be empty."
+            shakeError("Master Password cannot be empty.")
         } else if (password != confirmPassword) {
-            errorMessage = "Passwords do not match."
+            shakeError("Passwords do not match.")
         } else if (password.length < 8) {
-            errorMessage = "Master Password must be at least 8 characters long."
+            shakeError("Master Password must be at least 8 characters long.")
         } else {
             isLoading = true
+            
+            // 35-second safety watchdog
+            val watchdogJob = coroutineScope.launch {
+                kotlinx.coroutines.delay(35_000L)
+                if (isLoading) {
+                    isLoading = false
+                    shakeError("Vault initialization timed out. Please check CPU load or folder permissions.")
+                }
+            }
             onCreateVault(password) { success, errorMsg ->
+                watchdogJob.cancel()
                 isLoading = false
                 if (!success) {
-                    errorMessage = errorMsg ?: "Failed to create vault."
+                    shakeError(errorMsg ?: "Failed to create vault.")
                 }
             }
         }
@@ -63,16 +100,22 @@ fun SetupScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        MaterialTheme.colorScheme.background
+                    ),
+                    radius = 1200f
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
-        // Centered Modal Card
-        Surface(
-            modifier = Modifier.width(450.dp),
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp,
-            shadowElevation = 8.dp
+        GlassSurface(
+            modifier = Modifier
+                .widthIn(max = 450.dp)
+                .fillMaxWidth(0.9f)
+                .graphicsLayer { translationX = shakeOffset.value }
         ) {
             Column(
                 modifier = Modifier
@@ -82,8 +125,9 @@ fun SetupScreen(
             ) {
                 Text(
                     text = "Welcome to VaultPass",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
@@ -105,7 +149,7 @@ fun SetupScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
-                    label = { Text("Master Password") },
+                    placeholder = { Text("Master Password") },
                     singleLine = true,
                     isError = errorMessage != null,
                     visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -113,9 +157,14 @@ fun SetupScreen(
                     trailingIcon = {
                         val image = if (isPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                         IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                            Icon(imageVector = image, contentDescription = "Toggle password visibility")
+                            Icon(imageVector = image, contentDescription = "Toggle password visibility", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    ),
+                    shape = RoundedCornerShape(8.dp)
                 )
 
                 // Password Strength Indicator
@@ -131,8 +180,8 @@ fun SetupScreen(
                 
                 val strengthColor = when (strengthScore) {
                     0, 1 -> MaterialTheme.colorScheme.error
-                    2, 3 -> androidx.compose.ui.graphics.Color(0xFFFFA000) // Orange
-                    else -> androidx.compose.ui.graphics.Color(0xFF4CAF50) // Green
+                    2, 3 -> LocalVaultPassExtendedColors.current.warning // Orange
+                    else -> LocalVaultPassExtendedColors.current.success // Green
                 }
                 val strengthText = when (strengthScore) {
                     0, 1 -> "Weak"
@@ -145,26 +194,28 @@ fun SetupScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp, bottom = 4.dp),
+                            .padding(top = 12.dp, bottom = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         LinearProgressIndicator(
-                            progress = (strengthScore / 5f).coerceIn(0f, 1f),
+                            progress = { (strengthScore / 5f).coerceIn(0f, 1f) },
                             modifier = Modifier
                                 .weight(1f)
-                                .height(4.dp),
+                                .height(6.dp),
                             color = strengthColor,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                            trackColor = MaterialTheme.colorScheme.outline,
+                            strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = strengthText,
                             style = MaterialTheme.typography.bodySmall,
-                            color = strengthColor
+                            color = strengthColor,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 } else {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                 }
 
                 // Confirm Password Field
@@ -185,7 +236,7 @@ fun SetupScreen(
                                 false
                             }
                         },
-                    label = { Text("Confirm Master Password") },
+                    placeholder = { Text("Confirm Master Password") },
                     singleLine = true,
                     isError = errorMessage != null,
                     visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -194,9 +245,14 @@ fun SetupScreen(
                     trailingIcon = {
                         val image = if (isPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                         IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                            Icon(imageVector = image, contentDescription = "Toggle password visibility")
+                            Icon(imageVector = image, contentDescription = "Toggle password visibility", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    ),
+                    shape = RoundedCornerShape(8.dp)
                 )
 
                 AnimatedVisibility(
@@ -204,13 +260,19 @@ fun SetupScreen(
                     enter = expandVertically() + fadeIn(),
                     exit = shrinkVertically() + fadeOut()
                 ) {
-                    Column {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = errorMessage ?: "",
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.align(Alignment.Start)
+                            textAlign = TextAlign.Center,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -220,7 +282,8 @@ fun SetupScreen(
                 Button(
                     onClick = submitAction,
                     modifier = Modifier.fillMaxWidth().height(48.dp),
-                    enabled = !isLoading
+                    enabled = !isLoading,
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
@@ -229,7 +292,7 @@ fun SetupScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("Create Vault", style = MaterialTheme.typography.labelLarge)
+                        Text("Create Vault", style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }

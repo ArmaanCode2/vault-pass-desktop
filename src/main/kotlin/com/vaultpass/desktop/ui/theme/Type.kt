@@ -6,38 +6,58 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Note: Future milestones will bundle custom fonts (Inter/Roboto/JetBrains Mono).
-// For now, we use standard generic families that map to system fonts.
-
+// Using SansSerif as a fallback for Inter if not bundled.
 val DesktopTypography = Typography(
-    // H1 (Page Title)
+    displayLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Bold, // 700
+        fontSize = 48.sp,
+        lineHeight = 56.sp,
+        letterSpacing = (-0.02).sp
+    ),
     headlineLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Bold,
-        fontSize = 24.sp
+        fontWeight = FontWeight.SemiBold, // 600
+        fontSize = 32.sp,
+        lineHeight = 40.sp,
+        letterSpacing = (-0.01).sp
     ),
-    // H2 (Section Header)
     headlineMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp
+        fontWeight = FontWeight.SemiBold, // 600
+        fontSize = 24.sp,
+        lineHeight = 32.sp
     ),
-    // Body text (List items, settings)
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.SemiBold, // 600
+        fontSize = 18.sp,
+        lineHeight = 24.sp
+    ),
     bodyLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp
+        fontWeight = FontWeight.Normal, // 400
+        fontSize = 16.sp,
+        lineHeight = 24.sp
     ),
-    // Caption / Metadata
-    bodySmall = TextStyle(
+    bodyMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Normal,
-        fontSize = 12.sp
+        fontWeight = FontWeight.Normal, // 400
+        fontSize = 14.sp,
+        lineHeight = 20.sp
     ),
-    // Monospace for passwords (mapping to labelLarge for convenience, or custom style)
-    labelLarge = TextStyle(
-        fontFamily = FontFamily.Monospace,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp
+    labelMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Medium, // 500
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.01.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.SemiBold, // 600
+        fontSize = 11.sp,
+        lineHeight = 14.sp,
+        letterSpacing = 0.03.sp
     )
 )

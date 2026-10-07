@@ -9,6 +9,8 @@ data class SecurityReport(
     val reusedEntries: List<VaultEntry>,
     val duplicateEntries: List<VaultEntry>,
     val oldEntries: List<VaultEntry>,
+    val missingUrlEntries: List<VaultEntry>,
+    val missingUsernameEntries: List<VaultEntry>,
     val recommendations: List<String>
 )
 
@@ -16,17 +18,19 @@ object SecurityAnalyzer {
     fun analyze(entries: List<VaultEntry>): SecurityReport {
         if (entries.isEmpty()) {
             return SecurityReport(
-                score = 100,
+                score = 0,
                 weakEntries = emptyList(),
                 reusedEntries = emptyList(),
                 duplicateEntries = emptyList(),
                 oldEntries = emptyList(),
+                missingUrlEntries = emptyList(),
+                missingUsernameEntries = emptyList(),
                 recommendations = listOf("Your vault is empty. Start adding passwords securely.")
             )
         }
 
-        // 1. Weak Passwords (Length < 8)
-        val weakEntries = entries.filter { it.secret.length < 8 }
+        // 1. Weak Passwords (Entropy Score == 0)
+        val weakEntries = entries.filter { PasswordStrength.calculatePasswordScore(it.secret) == 0 }
 
         // 2. Reused Passwords (Different entries sharing the exact same secret)
         // Group by secret. If a secret is used in >1 entry, all those entries are "reused".
@@ -45,21 +49,33 @@ object SecurityAnalyzer {
         val now = System.currentTimeMillis()
         val oldEntries = entries.filter { now - it.updatedAt > ninetyDaysMs }
 
+        // 5. Missing URLs
+        val missingUrlEntries = entries.filter { it.url.isBlank() }
+
+        // 6. Missing Usernames
+        val missingUsernameEntries = entries.filter { it.username.isBlank() }
+
         // Score Calculation
         // Start at 100.
-        // -10 for each weak password
-        // -5 for each reused password
+        // -15 for each weak password
+        // -10 for each reused password
+        // -5 for each duplicate password
         // -2 for each old password
+        // -1 for each missing URL
+        // -2 for each missing username
         var score = 100
-        score -= (weakEntries.size * 10)
-        score -= (reusedEntries.size * 5)
+        score -= (weakEntries.size * 15)
+        score -= (reusedEntries.size * 10)
+        score -= (duplicateEntries.size * 5)
         score -= (oldEntries.size * 2)
+        score -= (missingUrlEntries.size * 1)
+        score -= (missingUsernameEntries.size * 2)
         score = score.coerceIn(0, 100)
 
         // Generate Recommendations
         val recommendations = mutableListOf<String>()
         if (weakEntries.isNotEmpty()) {
-            recommendations.add("You have ${weakEntries.size} weak password(s). Consider updating them to be at least 8 characters long.")
+            recommendations.add("You have ${weakEntries.size} weak password(s). Consider updating them to be stronger.")
         }
         if (reusedEntries.isNotEmpty()) {
             recommendations.add("You are reusing passwords across ${reusedEntries.size} accounts. Use unique passwords for every service.")
@@ -69,6 +85,12 @@ object SecurityAnalyzer {
         }
         if (duplicateEntries.isNotEmpty()) {
             recommendations.add("You have exact duplicate entries in your vault. Consider removing them to keep your vault clean.")
+        }
+        if (missingUrlEntries.isNotEmpty()) {
+            recommendations.add("You have ${missingUrlEntries.size} entry/entries missing a website URL. Adding a URL helps prevent phishing.")
+        }
+        if (missingUsernameEntries.isNotEmpty()) {
+            recommendations.add("You have ${missingUsernameEntries.size} entry/entries missing a username. Adding a username makes it easier to identify accounts.")
         }
         if (score == 100) {
             recommendations.add("Excellent! Your vault is highly secure.")
@@ -80,6 +102,8 @@ object SecurityAnalyzer {
             reusedEntries = reusedEntries.distinctBy { it.id },
             duplicateEntries = duplicateEntries.distinctBy { it.id },
             oldEntries = oldEntries.distinctBy { it.id },
+            missingUrlEntries = missingUrlEntries.distinctBy { it.id },
+            missingUsernameEntries = missingUsernameEntries.distinctBy { it.id },
             recommendations = recommendations
         )
     }
